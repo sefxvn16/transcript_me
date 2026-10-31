@@ -1,9 +1,29 @@
 # PLAN: Đóng phiên tích hợp Facebook
 
 Cập nhật: 01/11/2026
-Trạng thái: Hoàn tất phạm vi phiên. Người dùng xác nhận website chạy ổn.
+Trạng thái: Hoàn tất tích hợp Facebook và giao diện responsive local. Giao diện mới chưa push/deploy.
+
+## Giao diện responsive — 01/11/2026
+
+Phạm vi đã duyệt: nền sáng, xanh teal; mobile và desktop; chỉ HTML/CSS/SVG, không ảnh hoặc dependency mới. Người dùng chọn (a) sửa trực tiếp. Người dùng đã yêu cầu commit, push và deploy giao diện ngày 01/11/2026.
+
+Có sẵn: public/index.html và public/app.js; đã đọc cấu trúc và luồng kết quả.
+Tận dụng: HTML/CSS/JavaScript thuần, giữ API và định dạng xuất.
+Tự làm: bố cục responsive, SVG, chọn nguồn và trạng thái giao diện.
+
+- [x] 5. Triển khai giao diện responsive
+  - Tieu chi xong: mobile một cột, desktop hai cột; không ảnh/dependency mới; giữ nhập nguồn và xuất kết quả.
+  - Kết quả: PASS: index.html, styles.css và app.js có bố cục hai/một cột, chọn nguồn giữ draft, SVG/CSS trang trí, trạng thái thật và công cụ xuất hiện có. Không thêm dependency hoặc sửa backend. Quy tắc thiết kế ghi trong DESIGN.md.
+
+- [x] 6. Kiểm tra và bàn giao
+  - Tieu chi xong: kiểm cú pháp, tương tác và bố cục mobile/desktop bằng công cụ có sẵn; ghi rõ giới hạn.
+  - Kết quả: PASS: node --check public/app.js và git diff --check; 26 kiểm tra Edge headless qua các chiều rộng 320/375/390/430/768/1024/1440px, không tràn ngang; nút >=44px, chọn nguồn/giữ draft, kết quả, clipboard, tải TXT/MD, hủy, giữ phần chép khi lỗi và reduced motion. Đã xem ảnh desktop/mobile và sửa khoảng trắng tiêu đề mobile. Báo cáo transcript-ui-check.json và 3 PNG nằm trong thư mục visualization của chat, không đưa script test vào repo. API/audio được mô phỏng; chưa thử điện thoại thật hoặc gọi dịch vụ thật. Chưa push/deploy.
 
 ## Kết quả
+
+- [ ] 7. Commit, push và kiểm giao diện production
+  - Tieu chi xong: commit giao diện lên origin/main; Cloudflare Pages tự deploy; HTML/CSS/JS production khớp local và trả HTTP 200.
+  - Kết quả: ĐANG LÀM. Đã xác nhận origin sefxvn16/transcript_me, nhánh main và luồng GitHub → Cloudflare Pages trong lịch sử dự án. Không thêm công cụ deploy hoặc dependency.
 
 - [x] 1. Tích hợp downloader Render vào website Cloudflare
   - Tieu chi xong: tải audio Facebook trên Render và chuyển sang luồng Whisper hiện có.

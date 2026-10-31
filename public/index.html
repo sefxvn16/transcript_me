@@ -3,67 +3,78 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Transcript</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 0 auto; padding: 16px; line-height: 1.5; }
-    input, select, button, textarea { font: inherit; box-sizing: border-box; }
-    input[type=url], input[type=password], select, textarea { width: 100%; padding: 8px; }
-    input[type=file] { max-width: 100%; }
-    .row { margin: 12px 0; }
-    button { padding: 8px 14px; margin: 4px 4px 4px 0; }
-    #status { color: #555; white-space: pre-wrap; }
-    #output { min-height: 320px; }
-    .hidden { display: none; }
-    .hint, #result-note, #copy-status { color: #555; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
-    button { min-height: 44px; cursor: pointer; }
-    button:disabled { cursor: wait; }
-    :focus-visible { outline: 2px solid #2356aa; outline-offset: 2px; }
-  </style>
+  <meta name="theme-color" content="#f6f7f4">
+  <title>Transcript — Từ lời nói thành văn bản</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<main>
-  <h1>Transcript</h1>
-  <p>Lấy phụ đề YouTube hoặc chép lời nói từ file video và audio. Video từ TikTok và X.com: tải về rồi chọn file.</p>
-
-  <div class="row">
-    <label for="url">Link (YouTube, Facebook)</label>
-    <input id="url" type="url" placeholder="https://...">
-    <p class="hint">Link Facebook công khai: thử lấy video tự động; nếu Facebook chặn, hãy tải file về rồi chọn bên dưới.</p>
+  <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4m4-8v12m4-15v18m4-15v12m4-8v4"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="m10 13 4-4m-6 6-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m0 4 1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(1 1)"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 4h14M12 4v16m-4 0h8M5 4v3m14-3v3"/></symbol>
+  </defs></svg>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Transcript — Trang chủ"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-wave"/></svg></span>Transcript<span class="brand-dot">.</span></a>
+      <span class="header-note">Lắng nghe. Chuyển thành chữ.</span>
+    </header>
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow"><span></span> Ít gõ hơn, nhiều ý tưởng hơn</p>
+        <h1 id="page-title">Từ lời nói<br> thành <span>văn bản.</span></h1>
+        <p class="intro-description">Dán link hoặc chọn một file. Lấy phụ đề và chép lời nói<br class="desktop-break"> để đọc lại, lưu giữ và sử dụng theo cách của bạn.</p>
+        <div class="intro-art" aria-hidden="true"><div class="wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="art-arrow">→</span><div class="text-lines"><i></i><i></i><i></i><i></i></div></div>
+      </section>
+      <div class="workspace">
+        <section class="panel source-panel" aria-labelledby="source-heading">
+          <div class="panel-heading"><span class="step">01</span><h2 id="source-heading">Thêm nguồn của bạn</h2></div>
+          <div class="source-switch" role="group" aria-label="Chọn nguồn">
+            <button id="source-link" type="button" aria-pressed="true" aria-controls="link-fields"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg>Dán link</button>
+            <button id="source-file" type="button" aria-pressed="false" aria-controls="file-fields"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>Chọn file</button>
+          </div>
+          <div id="link-fields" class="source-fields">
+            <label for="url">Link video</label>
+            <input id="url" type="url" inputmode="url" placeholder="Dán link YouTube hoặc Facebook…" aria-describedby="url-hint" autocomplete="off" spellcheck="false">
+            <p id="url-hint" class="hint">Hỗ trợ YouTube và Facebook công khai. Nếu Facebook chặn, hãy tải file về rồi chọn file.</p>
+          </div>
+          <div id="file-fields" class="source-fields hidden">
+            <label for="file">File video hoặc audio</label>
+            <div class="file-picker"><svg class="icon upload-icon" aria-hidden="true"><use href="#i-upload"/></svg><span class="file-prompt">Chọn file từ thiết bị</span><span id="file-name" class="hint">Video hoặc audio của bạn</span><input id="file" type="file" accept="audio/*,video/*" aria-describedby="file-name file-hint"></div>
+            <p id="file-hint" class="hint">Với TikTok và X.com, tải video về thiết bị rồi chọn file tại đây.</p>
+          </div>
+          <div class="language-field">
+            <label for="lang">Ngôn ngữ lời nói</label>
+            <select id="lang" aria-describedby="language-hint"><option value="">Tự nhận diện</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select>
+            <p id="language-hint" class="hint">Giữ ngôn ngữ gốc, không dịch. YouTube ưu tiên phụ đề của ngôn ngữ đã chọn; nếu không có, dùng phụ đề có sẵn.</p>
+          </div>
+          <div class="run-actions"><button id="run" class="primary" type="button">Tạo transcript<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button id="cancel" class="stop hidden" type="button">Dừng</button></div>
+          <p id="status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <p class="source-footer"><svg class="icon" aria-hidden="true"><use href="#i-wave"/></svg> Một nguồn âm thanh. Một bản chữ dễ đọc.</p>
+        </section>
+        <section class="panel result-panel" aria-labelledby="result-heading">
+          <div class="panel-heading result-heading"><span class="step">02</span><h2 id="result-heading">Bản transcript</h2><span id="result-badge" class="badge">Chưa có nội dung</span></div>
+          <div id="empty-result" class="empty-result">
+            <div class="paper-art" aria-hidden="true"><span class="paper-symbol"><svg class="icon"><use href="#i-text"/></svg></span><i></i><i></i><i></i><i></i><span class="paper-wave"><svg class="icon"><use href="#i-wave"/></svg></span></div>
+            <h3>Lời nói của bạn, ở dạng chữ.</h3>
+            <p>Thêm link hoặc file rồi chọn <strong>Tạo transcript.</strong><br>Nội dung sẽ xuất hiện ở đây để bạn sao chép và tải về.</p>
+            <div class="empty-formats"><span>Văn bản gốc</span><span>TXT</span><span>Markdown</span></div>
+          </div>
+          <div id="result" class="hidden">
+            <div class="result-toolbar" role="group" aria-label="Sao chép và tải transcript"><button id="copy" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Sao chép</button><button id="dl-txt" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>.txt</button><button id="dl-md" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>.md</button></div>
+            <p id="result-note" class="hint"></p>
+            <p id="copy-status" role="status" aria-live="polite"></p>
+            <label for="output" class="sr-only">Nội dung transcript</label>
+            <textarea id="output" readonly></textarea>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer class="site-footer"><span>Transcript<span class="brand-dot">.</span></span><p>Từ video, audio đến những dòng chữ.</p></footer>
   </div>
-  <div class="row">
-    <label for="file">Hoặc chọn file video/audio</label><br>
-    <input id="file" type="file" accept="audio/*,video/*">
-  </div>
-  <div class="row">
-    <label for="lang">Ngôn ngữ lời nói</label>
-    <select id="lang">
-      <option value="">Tự nhận diện</option>
-      <option value="vi">Tiếng Việt</option>
-      <option value="en">Tiếng Anh</option>
-    </select>
-    <p class="hint">Chép bằng ngôn ngữ gốc, không dịch. Với YouTube, ưu tiên phụ đề của ngôn ngữ đã chọn; nếu không có, dùng phụ đề có sẵn.</p>
-  </div>
-  <div class="row">
-    <button id="run">Lấy transcript</button>
-    <button id="cancel" class="hidden">Dừng</button>
-  </div>
-
-  <p id="status" role="status" aria-live="polite"></p>
-
-  <div id="result" class="hidden">
-    <h2>Kết quả</h2>
-    <p id="result-note"></p>
-    <div class="row">
-      <button id="copy">Copy</button>
-      <button id="dl-txt">Tải .txt</button>
-      <button id="dl-md">Tải .md</button>
-    </div>
-    <p id="copy-status" role="status"></p>
-    <label for="output">Nội dung transcript</label>
-    <textarea id="output" readonly></textarea>
-  </div>
-
-</main>
   <script src="app.js"></script>
 </body>
 </html>

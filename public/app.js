@@ -7,6 +7,16 @@ const DOWNLOADER_URL = "https://transcript-downloader-trial.onrender.com";
 const $ = (id) => document.getElementById(id);
 let last = null; // { text, source, method }
 let activeJob = null;
+let sourceMode = "link";
+
+function selectSource(mode) {
+  if (activeJob) return;
+  sourceMode = mode;
+  for (const source of ["link", "file"]) {
+    $(`source-${source}`).setAttribute("aria-pressed", String(source === mode));
+    $(`${source}-fields`).classList.toggle("hidden", source !== mode);
+  }
+}
 
 function loadKey() {
   try {
@@ -18,6 +28,7 @@ function loadKey() {
 
 function setStatus(msg) {
   $("status").textContent = msg;
+  $("status").dataset.state = msg.startsWith("Lỗi:") ? "error" : activeJob ? "busy" : "idle";
 }
 
 async function request(url, options = {}, timeout = 60000) {
@@ -174,16 +185,21 @@ function showResult(text, method, source, complete, note = "") {
   $("output").value = text;
   $("result-note").textContent = `${complete ? "Hoàn tất" : "Chưa hoàn tất"} · ${method} · ${source}${note ? `\n${note}` : ""}`;
   $("result").classList.remove("hidden");
+  $("empty-result").classList.add("hidden");
+  document.body.classList.add("has-result");
+  $("result-badge").textContent = complete ? "Hoàn tất" : "Chưa hoàn tất";
+  $("result-badge").dataset.state = complete ? "complete" : "partial";
   $("copy-status").textContent = "";
 }
 
 async function run() {
   if (activeJob) return;
-  const url = $("url").value.trim();
-  const file = $("file").files[0];
+  const url = sourceMode === "link" ? $("url").value.trim() : "";
+  const file = sourceMode === "file" ? $("file").files[0] : null;
   const lang = $("lang").value;
   activeJob = new AbortController();
-  for (const id of ["run", "url", "file", "lang"]) $(id).disabled = true;
+  for (const id of ["run", "url", "file", "lang", "source-link", "source-file"]) $(id).disabled = true;
+  $("run").firstChild.textContent = "Đang xử lý…";
   $("cancel").classList.remove("hidden");
   const started = Date.now();
   let produced = false;
@@ -252,7 +268,9 @@ async function run() {
     setStatus(`${message}${last ? produced ? " Phần đã chép vẫn có thể sao chép và tải về." : " Kết quả bên dưới vẫn thuộc lần trước." : ""}`);
   } finally {
     activeJob = null;
-    for (const id of ["run", "url", "file", "lang"]) $(id).disabled = false;
+    for (const id of ["run", "url", "file", "lang", "source-link", "source-file"]) $(id).disabled = false;
+    $("run").firstChild.textContent = "Tạo transcript";
+    if ($("status").dataset.state === "busy") $("status").dataset.state = "idle";
     $("cancel").classList.add("hidden");
   }
 }
@@ -273,8 +291,11 @@ function download(ext) {
 
 $("run").addEventListener("click", run);
 $("cancel").addEventListener("click", () => activeJob?.abort());
-$("url").addEventListener("input", () => { if ($("url").value.trim()) $("file").value = ""; });
-$("file").addEventListener("change", () => { if ($("file").files.length) $("url").value = ""; });
+$("source-link").addEventListener("click", () => selectSource("link"));
+$("source-file").addEventListener("click", () => selectSource("file"));
+$("file").addEventListener("change", () => {
+  $("file-name").textContent = $("file").files[0]?.name || "Video hoặc audio của bạn";
+});
 $("copy").addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText($("output").value);
