@@ -1,10 +1,14 @@
 # PLAN: Website transcript video/audio (cá nhân)
 
-Cập nhật: 2026-10-31 · Phiên: 1
+Cập nhật: 2026-11-01 · Phiên: 1
 Mục tiêu: Web cá nhân dán link (YouTube, Facebook công khai, ...) hoặc upload video/audio → transcript tiếng Anh/Việt hiện ngay, tải .txt/.md; không lưu gì trên web.
 Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages tự deploy; giao diện tối giản; mức dự án: đơn giản (kiểm tay, không test tự động). Dự phòng đã chấp nhận: link không xử lý được → người dùng tải về rồi upload.
 
 ## Các mục
+
+- [x] 24. Ghi nhận kiểm thực tế của người dùng và commit
+  - Tieu chi xong: lưu đúng phản hồi người dùng và commit bản ghi, giữ nguyên code đã chạy ổn.
+  - Kết quả: PASS: ngày 01/11/2026 người dùng xác nhận “được rồi, chạy ổn rồi” sau khi dùng bản tích hợp Facebook trên production. Đã kiểm working tree sạch trước khi ghi nhận; chỉ cập nhật PLAN.md, không thay đổi code hoặc suy rộng sang các nền tảng, thiết bị hay link chưa được kiểm.
 
 - [x] 22. Nối Render downloader vào luồng Facebook trên web
   - Tieu chi xong: backend nhận link Facebook HTTPS và trả MP3, giới hạn dung lượng/thời gian/một lượt xử lý, dọn file tạm; web dùng lại luồng chia đoạn Whisper và Dừng; kiểm local trước khi hỏi xác nhận push.
