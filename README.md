@@ -2,6 +2,16 @@
 
 Web cá nhân lấy transcript tiếng Việt/tiếng Anh từ link YouTube, Facebook công khai hoặc file video/audio. Không lưu gì trên server; kết quả hiện ngay, tải về `.txt` hoặc `.md`.
 
+## Phạm vi hiện tại
+
+- YouTube: ưu tiên phụ đề của ngôn ngữ đã chọn; nếu không có, dùng phụ đề có sẵn và báo ngôn ngữ thực tế. Chỉ gọi Gemini khi không lấy được phụ đề. Website không dịch transcript.
+- Facebook: thử lấy video công khai. Link Reel mẫu `https://www.facebook.com/share/r/1E6dFuLXQ6/` đã trả HTTP 400 trên Cloudflare ngày 31/10/2026; chưa có cách tải tự động được kiểm chứng cho link này. Khi không lấy được, tải video hoặc audio về rồi chọn file.
+- TikTok và X.com: hiện dùng file video/audio, chưa hỗ trợ tải trực tiếp từ link.
+- File được chia thành đoạn 30 giây. Nội dung từng đoạn được giữ ngay khi nhận; nếu lỗi hoặc dừng, vẫn sao chép và tải được phần đã chép. File tải chưa đủ có `partial-` trong tên.
+- Gemini trả nội dung bị cắt hoặc kết thúc bất thường sẽ được đánh dấu chưa hoàn tất. Không tự coi nội dung đó là transcript đầy đủ.
+
+Giữ Cloudflare Pages, không cài thêm downloader hoặc backend riêng theo lựa chọn của người dùng ngày 31/10/2026.
+
 ## Cách hoạt động
 
 | Đầu vào | Xử lý |

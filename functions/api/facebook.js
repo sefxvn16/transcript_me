@@ -1,7 +1,11 @@
 import { isFacebookUrl, getFacebookVideoUrl } from "../../lib/facebook.js";
 
 export async function onRequestPost({ request }) {
-  const { url } = await request.json();
+  let body;
+  try { body = await request.json(); } catch {
+    return Response.json({ error: "Nội dung gửi lên phải là JSON hợp lệ" }, { status: 400 });
+  }
+  const { url } = body || {};
   if (!isFacebookUrl(url || "")) return Response.json({ error: "Link Facebook không hợp lệ" }, { status: 400 });
   try {
     const mediaUrl = await getFacebookVideoUrl(url);

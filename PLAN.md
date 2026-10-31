@@ -51,3 +51,15 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
   FAIL: <lý do>
   CHỜ NGƯỜI DÙNG: <câu hỏi>   (điểm cần xác nhận; cho phép dừng khi còn mục mở)
 -->
+
+## Tiếp nhận và sửa tiếp ngày 31/10/2026
+
+- [x] 9. Xác nhận phạm vi theo mục tiêu YouTube, Facebook, nếu được TikTok và X.com.
+  - Tieu chi xong: người dùng chọn giữ Cloudflare hoặc thêm backend tải media.
+  - Ket qua: PASS: người dùng chọn giữ Cloudflare; link không tải được thì chọn file thủ công. Không cài yt-dlp, không thêm dependency. Đã tái hiện link Facebook Reel người dùng gửi trả HTTP 400 trên website production; TikTok/X.com hiện dùng file.
+- [x] 10. Sửa và kiểm lại các lỗi trong luồng hiện có.
+  - Tieu chi xong: JS hợp lệ; kiểm phụ đề, xử lý input lỗi, upload chia đoạn, dừng, sao chép và tải; ghi rõ nhánh không có key để thử.
+  - Ket qua: PASS: node --check toàn bộ 7 JS và git diff --check; kiểm parser XML p/text và JSON3, ID YouTube sai, JSON hỏng và Whisper thiếu binding. Trình duyệt local: phụ đề en khi chọn vi hoạt động, WAV lời nói mẫu 40 giây chạy hết 2 đoạn Whisper production trong 7 giây và đúng nội dung; Copy, tải Markdown (đã mở file kiểm) và Dừng giữ kết quả cũ đạt; viewport 375px không tràn ngang. Mô phỏng MAX_TOKENS đánh dấu partial và lỗi đoạn 2 giữ đoạn 1 đạt. Subagent rà diff không thấy regression chặn push. Gemini chưa kiểm inference thật vì không có key; chưa thử tiếng Việt và điện thoại thực. Kết quả cũ không được dùng làm bằng chứng cho bản sửa này.
+- [ ] 11. Push và kiểm deployment.
+  - Tieu chi xong: người dùng xác nhận push làm Cloudflare tự deploy; kiểm website sau cập nhật.
+  - Ket qua: người dùng đã xác nhận “push đi” ngày 31/10/2026; đang push lên main và kiểm website sau triển khai.

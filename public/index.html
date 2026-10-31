@@ -7,53 +7,69 @@
   <style>
     body { font-family: system-ui, sans-serif; max-width: 760px; margin: 0 auto; padding: 16px; line-height: 1.5; }
     input, select, button, textarea { font: inherit; box-sizing: border-box; }
-    input[type=url], select, textarea { width: 100%; padding: 8px; }
+    input[type=url], input[type=password], select, textarea { width: 100%; padding: 8px; }
+    input[type=file] { max-width: 100%; }
     .row { margin: 12px 0; }
     button { padding: 8px 14px; margin: 4px 4px 4px 0; }
     #status { color: #555; white-space: pre-wrap; }
     #output { min-height: 320px; }
     .hidden { display: none; }
+    .hint, #result-note, #copy-status { color: #555; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    button { min-height: 44px; cursor: pointer; }
+    button:disabled { cursor: wait; }
+    :focus-visible { outline: 2px solid #2356aa; outline-offset: 2px; }
   </style>
 </head>
 <body>
+<main>
   <h1>Transcript</h1>
+  <p>Lấy phụ đề YouTube hoặc chép lời nói từ file video và audio. Video từ TikTok và X.com: tải về rồi chọn file.</p>
 
   <div class="row">
     <label for="url">Link (YouTube, Facebook)</label>
     <input id="url" type="url" placeholder="https://...">
+    <p class="hint">Link Facebook công khai: thử lấy video tự động; nếu Facebook chặn, hãy tải file về rồi chọn bên dưới.</p>
   </div>
   <div class="row">
     <label for="file">Hoặc chọn file video/audio</label><br>
     <input id="file" type="file" accept="audio/*,video/*">
   </div>
   <div class="row">
-    <label for="lang">Ngôn ngữ</label>
+    <label for="lang">Ngôn ngữ lời nói</label>
     <select id="lang">
       <option value="">Tự nhận diện</option>
       <option value="vi">Tiếng Việt</option>
       <option value="en">Tiếng Anh</option>
     </select>
+    <p class="hint">Chép bằng ngôn ngữ gốc, không dịch. Với YouTube, ưu tiên phụ đề của ngôn ngữ đã chọn; nếu không có, dùng phụ đề có sẵn.</p>
   </div>
   <details class="row" id="settings">
     <summary>Gemini API key (cho video YouTube không có phụ đề)</summary>
     <p>Nhập một lần trên mỗi thiết bị; key chỉ lưu trong trình duyệt này. Lấy key ở aistudio.google.com.</p>
-    <input id="gemini-key" type="password" autocomplete="off" placeholder="Dán key vào đây" style="width:100%;padding:8px">
+    <label for="gemini-key">API key của bạn</label>
+    <input id="gemini-key" type="password" autocomplete="off" placeholder="Dán key vào đây">
   </details>
   <div class="row">
     <button id="run">Lấy transcript</button>
+    <button id="cancel" class="hidden">Dừng</button>
   </div>
 
-  <p id="status"></p>
+  <p id="status" role="status" aria-live="polite"></p>
 
   <div id="result" class="hidden">
+    <h2>Kết quả</h2>
+    <p id="result-note"></p>
     <div class="row">
       <button id="copy">Copy</button>
       <button id="dl-txt">Tải .txt</button>
       <button id="dl-md">Tải .md</button>
     </div>
+    <p id="copy-status" role="status"></p>
+    <label for="output">Nội dung transcript</label>
     <textarea id="output" readonly></textarea>
   </div>
 
+</main>
   <script src="app.js"></script>
 </body>
 </html>
