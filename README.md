@@ -12,6 +12,20 @@ Web cá nhân lấy transcript tiếng Việt/tiếng Anh từ link YouTube, Fac
 
 Giữ Cloudflare Pages, không cài thêm downloader hoặc backend riêng theo lựa chọn của người dùng ngày 31/10/2026.
 
+Ngày 01/11/2026 người dùng duyệt thử backend Render Free. Thư mục
+`downloader-trial/` và `render.yaml` chỉ phục vụ phép thử, chưa nối vào trang chính.
+Backend dùng yt-dlp/ffmpeg, chỉ nhận đúng link Facebook mẫu đã duyệt:
+`POST /trial` trả kết quả tải/chuyển MP3/kiểm audio và xóa file tạm; gọi lại trả
+kết quả cũ trong cùng phiên server. `GET /health` kiểm dịch vụ sẵn sàng.
+Không dùng cookie Facebook, database, thẻ thanh toán hoặc instance trả phí.
+Máy chủ khởi động lại sẽ mất kết quả thử đã ghi trong RAM.
+
+Để thử trên Render: tạo Blueprint từ repo này (đọc `render.yaml`), xác nhận
+service `transcript-downloader-trial` có plan **Free**, rồi Deploy. Hoặc tạo
+Web Service, chọn repo, Root directory `downloader-trial`, runtime Docker,
+instance Free, health check `/health`. Deploy xong mới gọi `POST /trial`.
+Render Free ngủ khi không dùng; cần chờ khởi động lại trước khi thử.
+
 ## Cách hoạt động
 
 | Đầu vào | Xử lý |

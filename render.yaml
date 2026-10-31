@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: transcript-downloader-trial
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: downloader-trial
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit

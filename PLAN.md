@@ -6,9 +6,47 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 ## Các mục
 
-- [ ] 12. Chuyển thiết lập key sang trang /key riêng theo yêu cầu người dùng
+- [x] 16. Kiểm tra backend miễn phí chạy downloader sau phép thử Browser Run
+  - Tieu chi xong: xác minh nguồn chính thức về chi phí, gắn thẻ, deploy Docker/GitHub và giới hạn; không hứa tải được link trước khi thử.
+  - Kết quả: PASS: 01/11/2026 đã mở render.com/docs/free, /docs/your-first-deploy, /docs/docker, /docs/faq. Render có Free Web Service 750 giờ/workspace/tháng, ngủ sau 15 phút, khởi động khoảng một phút; không có payment method thì hết bandwidth/build quota sẽ dừng thay vì tính phí. Hỗ trợ Dockerfile từ repo, phù hợp chạy yt-dlp/ffmpeg. Chưa thử Facebook/TikTok từ Render; chưa có backend được triển khai. yt-dlp chưa cài trên máy, ffmpeg có sẵn. Koyeb FAQ yêu cầu thẻ, HF tạo Docker Space mới cần paid plan nên không chọn trong đề xuất này.
+  - Có sẵn: Render Free Web Service + Docker deploy từ repo, yt-dlp và ffmpeg đã xác nhận tồn tại; repo hiện có Pages/Whisper.
+  - Tận dụng: giữ Pages/Whisper; đề xuất dùng downloader có sẵn trong backend riêng, chưa thêm dependency.
+  - Tự làm: API tải/tách audio tạm thời và kết nối Pages sau khi phép thử Render thành công.
+
+- [x] 17. Chốt thêm Render Free cho phép thử downloader
+  - Tieu chi xong: người dùng đồng ý thêm backend Render Free và xác nhận tài khoản sẵn sàng; không chọn paid instance hoặc thêm thẻ.
+  - Kết quả: PASS: người dùng đồng ý “thử đi” sau khi chốt miễn phí; triển khai phép thử Render Free với yt-dlp/ffmpeg cùng repo, chưa tích hợp vào giao diện trước khi tải được audio thật. Không thêm thẻ hoặc dùng paid instance.
+
+- [x] 18. Thử yt-dlp độc lập và chuẩn bị backend Render có giới hạn
+  - Tieu chi xong: ghi kết quả link mẫu với yt-dlp; có Dockerfile và API thử, giới hạn thời gian/dung lượng, file tạm được dọn; kiểm cục bộ trước push.
+  - Kết quả: PASS: yt-dlp 2026.10.26 cài TEMP riêng; link mẫu nhận video ID 1124625790530691, tải audio 8.487.772 byte. Chạy chính perform_trial: sourceBytes 8487772, audioBytes 4872239, durationSeconds 811.883, MP3 16000 Hz mono, temporaryFilesDeleted true, elapsedSeconds 11.01 trên máy này. Đã kiểm AST và HTTP /health + /trial cache, git diff --check. Subagent rà chỉ đọc không thấy blocker cho thử Free; đã sửa race FileNotFoundError khi yt-dlp đổi tên .part. Có Dockerfile Python 3.13/ffmpeg, yt-dlp pin phiên bản, render.yaml plan free; chưa build Docker vì máy không có Docker. Trial chỉ link mẫu, không cookies/tùy ý URL.
+  - Có sẵn: lib/facebook.js, Pages/Whisper, Render Docker hỗ trợ repo; yt-dlp 2026.10.26 từ PyPI.
+  - Tận dụng: dùng yt-dlp nguyên, ffmpeg nguyên; giữ luồng transcript hiện tại.
+  - Tự làm: API thử lấy audio tạm trên Render và kiểm hiệu quả link mẫu, chưa tự thêm CORS/proxy công khai vào web chính.
+
+- [ ] 19. Triển khai Render Free và thử link Facebook thực tế
+  - Tieu chi xong: service Free deploy từ cùng repo GitHub, tải được audio hợp lệ từ link mẫu hoặc ghi rõ lỗi thực tế, không báo đạt chỉ vì build thành công.
+  - Kết quả: CHỜ NGƯỜI DÙNG: đã hỏi có tài khoản Render và mở Dashboard đăng nhập sẵn; trong lúc chờ tiếp tục chuẩn bị backend và kiểm cục bộ.
+
+- [x] 13. Nghiên cứu cách xử lý link Facebook/TikTok theo yêu cầu ngày 31/10/2026
+  - Tieu chi xong: đối chiếu code hiện tại với công cụ có sẵn và tài liệu chính thức; nêu phương án thử, chi phí, giới hạn, bằng chứng và quyết định cần người dùng duyệt.
+  - Kết quả: PASS: đã đọc nguồn chính thức cobalt Facebook/TikTok, yt-dlp Facebook extractor, license, Cloudflare Browser Run và CORS; subagent kiểm GitHub Actions/HF, agent chính mở lại điều khoản Actions và Spaces overview để đối chiếu. Link mẫu từ máy local HTTP 200 nhưng không có browser_native/playable/progressive_url/manifest/captions_url; không có CORS header. Browser Run có free 10 phút/ngày, content endpoint render JavaScript, có binding không cần API token; luôn nhận diện bot, chưa thử link thật trên Browser Run. Cobalt không có public API chính thức, cần tự host, AGPL-3.0; yt-dlp có parser dữ liệu Relay/DASH/progressive mới hơn code hiện tại, Unlicense ở source nhưng chưa cài/chạy. Không khuyến nghị Actions làm backend runtime theo điều khoản; HF tạo Docker/Gradio mới cần gói trả phí. Chưa xác minh giải pháp nào lấy được audio mẫu; không cài dependency hoặc thay đổi code sản phẩm.
+  - Nguồn: https://developers.cloudflare.com/browser-run/pricing/ ; https://developers.cloudflare.com/browser-run/quick-actions/content-endpoint/ ; https://developers.cloudflare.com/browser-run/reference/automatic-request-headers/ ; https://github.com/imputnet/cobalt/blob/main/api/README.md ; https://github.com/imputnet/cobalt/blob/main/api/src/processing/services/tiktok.js ; https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/facebook.py ; https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features#actions ; https://huggingface.co/docs/hub/en/spaces-overview
+  - Có sẵn: lib/facebook.js và functions/api/facebook.js đã đọc; cobalt api source Facebook/TikTok, yt-dlp Facebook extractor, Cloudflare Browser Run pricing/content/headers đã mở nguồn chính thức.
+  - Tận dụng: ý tưởng tách tải trang, đọc dữ liệu video và speech-to-text; chưa sao chép code AGPL của cobalt.
+  - Tự làm: đánh giá phép thử nhỏ đáp ứng Cloudflare miễn phí và chốt với người dùng trước khi thêm binding/backend.
+
+- [x] 14. Chốt phép thử Browser Run trước khi thay đổi backend
+  - Tieu chi xong: người dùng đồng ý dùng quota Browser Run và thêm binding/endpoint thử có giới hạn, hoặc chọn giữ upload.
+  - Kết quả: PASS: người dùng đồng ý “làm đi, phức tạp cũng được, tôi quan trọng là hiệu quả”; đã mở Dashboard theo yêu cầu. Ngày 01/11/2026 đã truy cập Browser Run Playground có sẵn; chọn Extract data / HTML Content, Network Idle 2, timeout 30000 và chạy một lần link mẫu, chưa tạo Worker hoặc token.
+
+- [ ] 15. Kiểm kết quả Browser Run trên link Facebook mẫu trước khi tích hợp
+  - Tieu chi xong: nhận kết quả thật và ghi rõ có URL media tải được hay lỗi cụ thể; chỉ tích hợp khi có bằng chứng lấy được audio/video.
+  - Kết quả: CHỜ NGƯỜI DÙNG: ngày 01/11/2026 Playground trả JSON success:true, result là HTML Facebook cho link mẫu, đã thấy trên ảnh chụp. Chưa đọc được toàn bộ result để xác nhận URL media: cây accessibility còn hiển thị trạng thái Loading trong khi screenshot đã có kết quả; khi dùng Find để kiểm trường video, Computer Use tự dừng với thông báo không xác định được URL hiện tại đủ chắc chắn để thực thi chính sách. Không tiếp tục thao tác UI hoặc tìm đường vượt giới hạn. Nhờ người dùng đóng ô tìm kiếm Chrome (Esc), giữ trang Cloudflare Browser Run Playground với kết quả rồi báo để tiếp tục kiểm; hoặc cung cấp kết quả JSON qua file trong thư mục dự án. Chưa tạo Worker, token hoặc tích hợp vào web.
+
+- [x] 12. Chuyển thiết lập key sang trang /key riêng theo yêu cầu người dùng
   - Tieu chi xong: trang chính không có ô hoặc nút đổi key và không liên kết trang riêng; /key lưu key cùng localStorage cũ; push và kiểm production.
-  - Kết quả: đang triển khai; sửa trực tiếp đã được duyệt trong phiên; push hoàn thiện theo ủy quyền trước.
+  - Kết quả: PASS: push e83be35; production /key HTTP 200 có key-form và trang chủ không còn settings. node --check và git diff --check đạt; mô phỏng lưu/đổi key đạt, giữ storage cũ gemini-api-key. Không gọi Gemini bằng key thật, chưa kiểm trực quan trang riêng.
   - Có sẵn: public/app.js loadKey/localStorage, giao diện lưu key hiện có; đã đọc code.
   - Tận dụng: chỉnh cách đọc key, giữ storage gemini-api-key và luồng transcript.
   - Tự làm: public/key.html và device-settings.js; không thêm dependency.
