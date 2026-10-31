@@ -6,6 +6,13 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 ## Các mục
 
+- [ ] 12. Chuyển thiết lập key sang trang /key riêng theo yêu cầu người dùng
+  - Tieu chi xong: trang chính không có ô hoặc nút đổi key và không liên kết trang riêng; /key lưu key cùng localStorage cũ; push và kiểm production.
+  - Kết quả: đang triển khai; sửa trực tiếp đã được duyệt trong phiên; push hoàn thiện theo ủy quyền trước.
+  - Có sẵn: public/app.js loadKey/localStorage, giao diện lưu key hiện có; đã đọc code.
+  - Tận dụng: chỉnh cách đọc key, giữ storage gemini-api-key và luồng transcript.
+  - Tự làm: public/key.html và device-settings.js; không thêm dependency.
+
 - [x] 1. Tìm hiểu mọi cách lấy transcript/audio từ link chạy miễn phí trên Cloudflare (tự tra + hỏi ChatGPT + hỏi Gemini)
   - Tiêu chí xong: bảng phương án cho YouTube (có/không phụ đề) và Facebook công khai, mỗi phương án ghi nguồn đã kiểm, chi phí, rủi ro; có ý kiến ChatGPT và Gemini đã đối chiếu
   - Kết quả: PASS: 2026-10-31 đã tra web (Gemini API docs: YouTube URL miễn phí 8 giờ/ngày; Workers AI pricing; báo cáo chặn IP trên Workers/HF Spaces/cloud), hỏi ChatGPT (chatgpt.com, chưa đăng nhập) và Gemini (Flash-Lite, chưa đăng nhập). Hai bên cùng đề xuất: phụ đề → Gemini API cho YouTube → GitHub Actions + yt-dlp cho Facebook/khác → upload. Tổng hợp trình bày trong chat.
@@ -53,9 +60,9 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
   - Tận dụng: chỉnh các thành phần hiện có, không thêm dependency.
   - Tự làm: nút Lưu key, Đổi key và trạng thái lưu; xử lý Enter.
 
-- [ ] 10. Chẩn đoán link Facebook người dùng gửi
+- [x] 10. Chẩn đoán link Facebook người dùng gửi
   - Tieu chi xong: link share/v/1cJ7U3xjpA trả transcript hoặc xác định bước thất bại bằng kết quả thật.
-  - Ket qua: FAIL: 2026-10-31 link chia sẻ từ máy này trả HTTP 200, chuyển tới /groups/sacmaucuocsongxaque/permalink/4749560085324241/; API Pages trả 502 kèm Facebook HTTP 400 cho cả link chia sẻ lẫn link bài gốc. Thất bại ở bước tải trang, trước khi bóc media. Chưa xác định nguyên nhân HTTP 400; không đủ bằng chứng kết luận chặn bot. Dự phòng upload đã được duyệt.
+  - Kết quả: PASS: chẩn đoán xác định được bước thất bại (không phải đã sửa được Facebook). 2026-10-31 link chia sẻ từ máy này trả HTTP 200, chuyển tới /groups/sacmaucuocsongxaque/permalink/4749560085324241/; API Pages trả 502 kèm Facebook HTTP 400 cho cả link chia sẻ lẫn link bài gốc. Thất bại ở bước tải trang, trước khi bóc media. Chưa xác định nguyên nhân HTTP 400; không đủ bằng chứng kết luận chặn bot. Chức năng transcript từ link này chưa đạt; dùng dự phòng upload theo phạm vi đã duyệt giữ Cloudflare, không thêm backend.
 
 <!-- Kết quả hợp lệ:
   PASS: <bằng chứng cụ thể>   (rồi đổi [ ] thành [x])
@@ -71,6 +78,6 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 - [x] 10. Sửa và kiểm lại các lỗi trong luồng hiện có.
   - Tieu chi xong: JS hợp lệ; kiểm phụ đề, xử lý input lỗi, upload chia đoạn, dừng, sao chép và tải; ghi rõ nhánh không có key để thử.
   - Ket qua: PASS: node --check toàn bộ 7 JS và git diff --check; kiểm parser XML p/text và JSON3, ID YouTube sai, JSON hỏng và Whisper thiếu binding. Trình duyệt local: phụ đề en khi chọn vi hoạt động, WAV lời nói mẫu 40 giây chạy hết 2 đoạn Whisper production trong 7 giây và đúng nội dung; Copy, tải Markdown (đã mở file kiểm) và Dừng giữ kết quả cũ đạt; viewport 375px không tràn ngang. Mô phỏng MAX_TOKENS đánh dấu partial và lỗi đoạn 2 giữ đoạn 1 đạt. Subagent rà diff không thấy regression chặn push. Gemini chưa kiểm inference thật vì không có key; chưa thử tiếng Việt và điện thoại thực. Kết quả cũ không được dùng làm bằng chứng cho bản sửa này.
-- [ ] 11. Push và kiểm deployment.
+- [x] 11. Push và kiểm deployment.
   - Tieu chi xong: người dùng xác nhận push làm Cloudflare tự deploy; kiểm website sau cập nhật.
-  - Ket qua: người dùng đã xác nhận “push đi” ngày 31/10/2026; đang push lên main và kiểm website sau triển khai.
+  - Kết quả: PASS: commit 43b830b trên origin đã được ghép cùng sửa key, push 604139e thành công. Đã kiểm production 2026-10-31: trang chủ và app.js HTTP 200, có save-key/key-saved/cancel, có submitKey và AbortController; API phụ đề tiếng Anh trả HTTP 200, 2083 ký tự. Chưa kiểm Gemini bằng key thật và điện thoại thực.

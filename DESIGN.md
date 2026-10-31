@@ -8,7 +8,7 @@ Web cá nhân tiếng Việt, giao diện tối giản theo PLAN.md hiện có. 
 
 - Dùng phông hệ thống, nội dung rộng tối đa 760 px và lề 16 px.
 - Trường link, ngôn ngữ và transcript dùng toàn chiều rộng vùng nội dung.
-- Thiết lập API key nằm trong phần có thể thu gọn.
+- Thiết lập API key nằm trên trang /key riêng; trang chính không hiển thị key hoặc liên kết tới trang thiết lập.
 - Transcript là vùng chính sau xử lý; các nút sao chép và tải nằm cùng vùng kết quả.
 
 ## Trạng thái cần giữ rõ

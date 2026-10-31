@@ -15,37 +15,6 @@ function loadKey() {
   }
 }
 
-function saveKey(key) {
-  try {
-    if (key) localStorage.setItem(KEY_STORAGE, key);
-    else localStorage.removeItem(KEY_STORAGE);
-  } catch {
-    return false;
-  }
-  return true;
-}
-
-function showKeySaved(saved) {
-  $("settings").classList.toggle("hidden", saved);
-  $("key-saved").classList.toggle("hidden", !saved);
-  $("settings").open = !saved;
-}
-
-function submitKey() {
-  const key = $("gemini-key").value.trim();
-  if (!key) {
-    $("key-status").textContent = "Hãy dán API key trước khi lưu.";
-    return;
-  }
-  if (!saveKey(key)) {
-    $("key-status").textContent = "Trình duyệt không cho lưu key. Key chỉ dùng được trong lần mở trang này.";
-    return;
-  }
-  $("gemini-key").value = key;
-  $("key-status").textContent = "";
-  showKeySaved(true);
-}
-
 function setStatus(msg) {
   $("status").textContent = msg;
 }
@@ -82,12 +51,9 @@ function isFacebook(url) {
 
 // Called from the browser: the user's own network is in a Gemini-supported region and has no 100 s proxy timeout.
 async function transcribeWithGemini(url, lang) {
-  const apiKey = $("gemini-key").value.trim();
+  const apiKey = loadKey();
   if (!apiKey) {
-    showKeySaved(false);
-    $("settings").open = true;
-    $("gemini-key").focus();
-    throw new Error("Video không có phụ đề. Nhập Gemini API key ở mục bên trên rồi bấm lại.");
+    throw new Error("Thiết bị này chưa được thiết lập để xử lý video không có phụ đề. Hãy chọn file để chép.");
   }
   const langHint = lang === "vi" ? " The speech is in Vietnamese." : lang === "en" ? " The speech is in English." : "";
   const prompt =
@@ -216,7 +182,7 @@ async function run() {
   const file = $("file").files[0];
   const lang = $("lang").value;
   activeJob = new AbortController();
-  for (const id of ["run", "url", "file", "lang", "gemini-key"]) $(id).disabled = true;
+  for (const id of ["run", "url", "file", "lang"]) $(id).disabled = true;
   $("cancel").classList.remove("hidden");
   const started = Date.now();
   let produced = false;
@@ -276,7 +242,7 @@ async function run() {
     setStatus(`${message}${last ? produced ? " Phần đã chép vẫn có thể sao chép và tải về." : " Kết quả bên dưới vẫn thuộc lần trước." : ""}`);
   } finally {
     activeJob = null;
-    for (const id of ["run", "url", "file", "lang", "gemini-key"]) $(id).disabled = false;
+    for (const id of ["run", "url", "file", "lang"]) $(id).disabled = false;
     $("cancel").classList.add("hidden");
   }
 }
@@ -295,16 +261,6 @@ function download(ext) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-$("gemini-key").value = loadKey();
-showKeySaved(Boolean($("gemini-key").value));
-$("save-key").addEventListener("click", submitKey);
-$("gemini-key").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") { e.preventDefault(); submitKey(); }
-});
-$("change-key").addEventListener("click", () => {
-  showKeySaved(false);
-  $("gemini-key").focus();
-});
 $("run").addEventListener("click", run);
 $("cancel").addEventListener("click", () => activeJob?.abort());
 $("url").addEventListener("input", () => { if ($("url").value.trim()) $("file").value = ""; });

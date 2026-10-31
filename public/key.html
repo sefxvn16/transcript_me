@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Thiết lập thiết bị</title>
+  <style>
+    body { font: 16px/1.5 system-ui,sans-serif; max-width: 560px; margin: 0 auto; padding: 16px; }
+    input,button { font: inherit; box-sizing: border-box; padding: 10px; }
+    input { width: 100%; margin: 8px 0; }
+    button { min-height: 44px; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Thiết lập thiết bị</h1>
+  <form id="key-form">
+    <p>Nhập một lần trên mỗi thiết bị. Key chỉ lưu trong trình duyệt này.</p>
+    <label for="key">Gemini API key</label>
+    <input id="key" type="password" autocomplete="off" required placeholder="Dán key vào đây">
+    <button type="submit">Lưu key</button>
+  </form>
+  <p id="message" role="status"></p>
+  <button id="edit" type="button" hidden>Đổi key</button>
+  <p><a href="/">Về trang transcript</a></p>
+</main>
+<script src="device-settings.js"></script>
+</body>
+</html>

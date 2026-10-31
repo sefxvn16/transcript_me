@@ -39,7 +39,7 @@ Không có dependency npm, không có bước build.
    - Build command: để trống
    - Build output directory: `public`
    - Binding Workers AI (`AI`) đã khai trong `wrangler.toml`, không cần thêm tay.
-3. **Gemini API key** (cho YouTube không có phụ đề): lấy miễn phí ở https://aistudio.google.com → Get API key. Trên web, mở mục "Gemini API key" và dán key; nhập một lần trên mỗi thiết bị, key chỉ lưu trong trình duyệt đó. Gọi từ trình duyệt vì Function chạy ở Hồng Kông (Gemini không hỗ trợ) và Cloudflare cắt request chờ quá ~100 giây.
+3. **Gemini API key** (cho YouTube không có phụ đề): lấy miễn phí ở https://aistudio.google.com → Get API key. Mở đường dẫn `/key` trên website, dán key và bấm Lưu key; nhập một lần trên mỗi thiết bị. Key cũ vẫn dùng được. Trang chính không có liên kết tới trang thiết lập. Trang riêng không yêu cầu đăng nhập; ai biết đường dẫn vẫn mở được. Key chỉ lưu trong trình duyệt đó.
 4. **Khóa web chỉ mình bạn dùng (tùy chọn, hiện không dùng):** Cloudflare Zero Trust → Access → Applications → Add application → Self-hosted → domain `<tên-project>.pages.dev` → policy Allow, Include: Emails = email của bạn. Giao diện Cloudflare có thể đã đổi tên mục.
 
 Sau đó chỉ cần push lên GitHub, Cloudflare tự deploy.
