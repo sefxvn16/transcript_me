@@ -38,8 +38,13 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 - [ ] 7. Deploy và thử trên web thật (~10 link + 1 file upload, cả máy tính và điện thoại)
   - Tiêu chí xong: ghi kết quả từng link (được/không, cách nào)
-  - Kết quả: CHỜ NGƯỜI DÙNG: cần người dùng tạo repo GitHub và kết nối Cloudflare Pages theo README (hoặc cho phép tôi git init + push)
+  - Kết quả: CHỜ NGƯỜI DÙNG: đã deploy https://transcript-me.pages.dev (2026-10-31). Đã đạt: trang chủ 200; /api/youtube lấy phụ đề en từ Worker (2083 ký tự, không bị chặn IP); /api/whisper chép đúng nguyên văn câu TTS tiếng Anh; giao diện: link YouTube → hiện transcript, upload WAV 40 giây → chia 2 đoạn → Whisper chạy hết; giao diện mobile 375px hiển thị đủ. Chưa đạt: Gemini (chưa có GEMINI_API_KEY), Facebook (chưa có link mẫu), tiếng Việt thật. Khóa truy cập: người dùng quyết định không dùng (2026-10-31), chấp nhận rủi ro bị dùng chung quota
   - Kiểm bởi: người dùng
+
+- [ ] 8. Sửa lỗi Gemini "User location is not supported" (Function chạy ở HKG, Hồng Kông không được Gemini hỗ trợ)
+  - Tiêu chí xong: /api/youtube với lang=vi trên video mẫu trả về method "Gemini API" có nội dung
+  - Kết quả: CHỜ NGƯỜI DÙNG: đã thêm [placement] region = "gcp:asia-southeast1" vào wrangler.toml; cần người dùng đồng ý push để Cloudflare deploy lại và thử. Nếu Pages bỏ qua cấu hình này: chuyển sang gọi Gemini từ trình duyệt (key nhập một lần, lưu trên máy)
+  - Kiểm bởi: tôi
 
 <!-- Kết quả hợp lệ:
   PASS: <bằng chứng cụ thể>   (rồi đổi [ ] thành [x])

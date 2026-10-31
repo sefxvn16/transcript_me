@@ -2,3 +2,4 @@
 node_modules/
 .dev.vars
 _backup/
+.claude/settings.local.json
