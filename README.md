@@ -17,6 +17,7 @@ public/          giao diện (index.html, app.js)
 functions/api/   Pages Functions: youtube, facebook, media, whisper
 lib/             logic YouTube và Facebook
 wrangler.toml    cấu hình Pages + binding Workers AI
+gemini-worker/   Worker riêng chạy gần Singapore, chuyển tiếp request tới Gemini API
 ```
 
 Không có dependency npm, không có bước build.
@@ -30,7 +31,12 @@ Không có dependency npm, không có bước build.
    - Build output directory: `public`
    - Binding Workers AI (`AI`) đã khai trong `wrangler.toml`, không cần thêm tay.
 3. **Gemini API key** (cho YouTube không có phụ đề): lấy miễn phí ở https://aistudio.google.com → Get API key. Trong project Pages: Settings → Variables and Secrets → thêm `GEMINI_API_KEY`, loại Secret, môi trường Production → deploy lại.
-4. **Khóa web chỉ mình bạn dùng:** Cloudflare Zero Trust → Access → Applications → Add application → Self-hosted → domain `<tên-project>.pages.dev` → policy Allow, Include: Emails = email của bạn. Giao diện Cloudflare có thể đã đổi tên mục.
+4. **Worker proxy cho Gemini** (Pages chạy ở Hồng Kông, Gemini không hỗ trợ Hồng Kông): Workers & Pages → Create → Continue with GitHub → repo này.
+   - Project name: `transcript-gemini` (phải trùng `name` trong `gemini-worker/wrangler.toml`)
+   - Advanced → Root directory: `gemini-worker`
+   - Deploy xong, copy địa chỉ `https://transcript-gemini.<tài-khoản>.workers.dev`, điền vào `GEMINI_PROXY_URL` trong `wrangler.toml` gốc rồi push.
+   - Worker không giữ secret nào; key Gemini vẫn chỉ nằm ở Pages.
+5. **Khóa web chỉ mình bạn dùng (tùy chọn, hiện không dùng):** Cloudflare Zero Trust → Access → Applications → Add application → Self-hosted → domain `<tên-project>.pages.dev` → policy Allow, Include: Emails = email của bạn. Giao diện Cloudflare có thể đã đổi tên mục.
 
 Sau đó chỉ cần push lên GitHub, Cloudflare tự deploy.
 

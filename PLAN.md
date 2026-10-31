@@ -43,7 +43,7 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 - [ ] 8. Sửa lỗi Gemini "User location is not supported" (Function chạy ở HKG, Hồng Kông không được Gemini hỗ trợ)
   - Tiêu chí xong: /api/youtube với lang=vi trên video mẫu trả về method "Gemini API" có nội dung
-  - Kết quả: CHỜ NGƯỜI DÙNG: đã thêm [placement] region = "gcp:asia-southeast1" vào wrangler.toml; cần người dùng đồng ý push để Cloudflare deploy lại và thử. Nếu Pages bỏ qua cấu hình này: chuyển sang gọi Gemini từ trình duyệt (key nhập một lần, lưu trên máy)
+  - Kết quả: CHỜ NGƯỜI DÙNG: đã push placement gcp:asia-southeast1 (commit 370852e); sau deploy vẫn lỗi "User location is not supported" (thử đơn lẻ sau 4 phút) → Pages không áp dụng placement hint. Lưu ý: free tier gemini-3.8-flash chỉ 20 request/ngày, request bị chặn vị trí vẫn bị tính. Người dùng chọn tách Worker riêng. Đã viết gemini-worker/ (proxy không giữ secret, placement gcp:asia-southeast1), Pages gọi qua GEMINI_PROXY_URL, thêm flag global_fetch_strictly_public; node --check OK. Cần người dùng đồng ý push, tạo Worker transcript-gemini trên Cloudflare và gửi địa chỉ workers.dev
   - Kiểm bởi: tôi
 
 <!-- Kết quả hợp lệ:

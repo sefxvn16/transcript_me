@@ -1,0 +1,7 @@
+name = "transcript-gemini"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Gemini API rejects requests from Hong Kong, where Vietnamese traffic usually lands; run near Singapore instead.
+[placement]
+region = "gcp:asia-southeast1"
