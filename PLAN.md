@@ -1,7 +1,7 @@
 # PLAN: Đóng phiên tích hợp Facebook
 
 Cập nhật: 01/11/2026
-Trạng thái: Hoàn tất tích hợp Facebook và giao diện responsive local. Giao diện mới chưa push/deploy.
+Trạng thái: Hoàn tất tích hợp Facebook và giao diện responsive production tại https://transcript-me.pages.dev.
 
 ## Giao diện responsive — 01/11/2026
 
@@ -21,9 +21,9 @@ Tự làm: bố cục responsive, SVG, chọn nguồn và trạng thái giao di�
 
 ## Kết quả
 
-- [ ] 7. Commit, push và kiểm giao diện production
+- [x] 7. Commit, push và kiểm giao diện production
   - Tieu chi xong: commit giao diện lên origin/main; Cloudflare Pages tự deploy; HTML/CSS/JS production khớp local và trả HTTP 200.
-  - Kết quả: ĐANG LÀM. Đã xác nhận origin sefxvn16/transcript_me, nhánh main và luồng GitHub → Cloudflare Pages trong lịch sử dự án. Không thêm công cụ deploy hoặc dependency.
+  - Kết quả: PASS: commit ff64a25 đã push lên origin/main, Cloudflare Pages tự deploy tại https://transcript-me.pages.dev. GET /, /styles.css và /app.js đều HTTP 200, khớp local sau chuẩn hóa BOM/CRLF. SHA256 rút gọn lần lượt 980df75cc2033724, 4b0681e86f560f38, fcf579c58a50acf0. Kiểm cú pháp JS và git diff --check đạt. Không thêm dependency/công cụ deploy, không sửa backend. Lượt này không chạy lại nhận dạng thật hoặc thử điện thoại thật.
 
 - [x] 1. Tích hợp downloader Render vào website Cloudflare
   - Tieu chi xong: tải audio Facebook trên Render và chuyển sang luồng Whisper hiện có.
