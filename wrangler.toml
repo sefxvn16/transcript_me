@@ -9,4 +9,4 @@ binding = "AI"
 
 # Gemini calls go through gemini-worker/, which runs near Singapore (Pages ignores placement hints).
 [vars]
-GEMINI_PROXY_URL = ""
+GEMINI_PROXY_URL = "https://transcript-gemini.namdongplus.workers.dev"
