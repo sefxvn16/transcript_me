@@ -12,13 +12,13 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ error: "Video không có phụ đề và chưa cấu hình GEMINI_API_KEY" }, { status: 500 });
   }
   try {
-    const text = await transcribeWithGemini(
+    const { text, model } = await transcribeWithGemini(
       `https://www.youtube.com/watch?v=${videoId}`,
       lang,
       env.GEMINI_API_KEY,
       env.GEMINI_PROXY_URL
     );
-    return Response.json({ text, method: "Gemini API" });
+    return Response.json({ text, method: `Gemini API (${model})` });
   } catch (e) {
     return Response.json({ error: `Gemini lỗi: ${e.message}` }, { status: 502 });
   }
