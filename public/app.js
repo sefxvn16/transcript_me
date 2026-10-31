@@ -2,6 +2,7 @@ const SAMPLE_RATE = 16000;
 const CHUNK_SECONDS = 30;
 const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"];
 const KEY_STORAGE = "gemini-api-key";
+const DOWNLOADER_URL = "https://transcript-downloader-trial.onrender.com";
 
 const $ = (id) => document.getElementById(id);
 let last = null; // { text, source, method }
@@ -219,11 +220,20 @@ async function run() {
       }
     } else if (url && isFacebook(url)) {
       source = url;
-      setStatus("Đang tìm video trong link Facebook...");
-      const { mediaUrl } = await postJson("/api/facebook", { url });
-      setStatus("Đang tải video...");
-      const res = await request(`/api/media?url=${encodeURIComponent(mediaUrl)}`);
-      if (!res.ok) throw new Error(await res.text());
+      if (new URL(url).protocol !== "https:") throw new Error("Hãy dùng link Facebook bắt đầu bằng https://.");
+      setStatus("Đang tải audio từ Facebook... Nếu máy chủ đang ngủ, bước này có thể mất thêm khoảng một phút.");
+      const res = await request(`${DOWNLOADER_URL}/audio`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url }),
+      }, 420000);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(`Không tải được audio Facebook: ${data.error || `HTTP ${res.status}`}. Hãy thử lại hoặc tải file về rồi chọn file.`);
+      }
+      if (!res.headers.get("content-type")?.includes("audio/")) {
+        throw new Error("Máy chủ tải audio chưa sẵn sàng. Hãy thử lại sau một phút.");
+      }
       method = "Whisper (Workers AI)";
       text = await transcribeAudio(await res.arrayBuffer(), lang, progress);
     } else {

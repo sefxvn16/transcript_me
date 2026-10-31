@@ -6,6 +6,25 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 ## Các mục
 
+- [x] 22. Nối Render downloader vào luồng Facebook trên web
+  - Tieu chi xong: backend nhận link Facebook HTTPS và trả MP3, giới hạn dung lượng/thời gian/một lượt xử lý, dọn file tạm; web dùng lại luồng chia đoạn Whisper và Dừng; kiểm local trước khi hỏi xác nhận push.
+  - Kết quả: PASS: đã backup app.js, server.py và README; POST /audio local tải MP3 4872239 byte, ffprobe báo 811.882688 giây, 16000 Hz mono. Kiểm HTTP health/CORS/preflight, JSON lỗi, request quá lớn, sai Content-Type, URL HTTP/host giả/localhost/port khác/credentials đạt. Mô phỏng DOM đạt audio -> 2 đoạn Whisper, giữ phần đã chép khi đoạn 2 lỗi, backend bận, HTML khởi động, Dừng và HTTPS. 30 giây đầu audio mẫu gửi curl tới Whisper production HTTP 200 và text tiếng Việt không rỗng; chưa đối chiếu độ chính xác lời chép. Subagent chỉ đọc không thấy blocker, đã tăng timeout audio lên 420 giây theo góp ý. node --check, Python AST và git diff --check đạt. Chưa kiểm UI thật theo yêu cầu không điều khiển Chrome.
+  - Có sẵn: downloader-trial/server.py đã tải link mẫu trên Render; public/app.js có transcribeAudio, chia đoạn, AbortController và giữ kết quả từng phần; đã đọc code.
+  - Tận dụng: chỉnh backend và nhánh Facebook; giữ phụ đề/Gemini của YouTube và upload.
+  - Tự làm: POST /audio có CORS cho transcript-me.pages.dev và kiểm input/giới hạn; nối request từ trình duyệt.
+
+- [ ] 23. Push tích hợp và kiểm Render/Pages production
+  - Tieu chi xong: backend mới deploy và trả MP3 thực với CORS production; app.js production gọi /audio; kiểm audio -> Whisper trên production, không đánh đạt chỉ vì push xong.
+  - Kết quả: đang triển khai; người dùng yêu cầu tự làm nốt, không hỏi lại và không điều khiển Chrome. Push sẽ kích hoạt Render/Cloudflare tự deploy; đã nêu ảnh hưởng trước khi làm. Deploy backend trước rồi giao diện.
+
+- [x] 20. Tìm repo GitHub tương tự theo yêu cầu ngày 01/11/2026
+  - Tieu chi xong: mở kiểm README, ghi repo có luồng URL/upload sang transcript và phân biệt khả năng được mô tả với kết quả chạy thực tế.
+  - Kết quả: PASS: đã mở kiểm neromorph/local-whisper (URL/upload, yt-dlp, faster-whisper, TXT/SRT, MIT), jhj0517/Whisper-WebUI (file/YouTube/microphone, TXT/SRT/VTT; LICENSE Apache-2.0), iankiku/anytranscript (CLI/thư viện Node, phụ đề rồi Whisper, MIT), seanoliver/audioflare (Cloudflare Workers AI, upload, chỉ 30 giây đầu, MIT). Đã trình bày bảng trong chat; chưa cài/chạy các repo hoặc kiểm link Facebook mẫu bằng chúng. Không đổi kiến trúc hay thêm dependency.
+  - Có sẵn: bốn repo trên GitHub, đã mở README; Whisper-WebUI đã mở thêm LICENSE.
+  - Tận dụng: chỉ khảo sát, chưa dùng code hoặc cài công cụ ngoài.
+  - Tự làm: chưa triển khai từ kết quả khảo sát này.
+  - Nguồn: https://github.com/neromorph/local-whisper ; https://github.com/jhj0517/Whisper-WebUI ; https://github.com/jhj0517/Whisper-WebUI/blob/master/LICENSE ; https://github.com/iankiku/anytranscript ; https://github.com/seanoliver/audioflare
+
 - [x] 16. Kiểm tra backend miễn phí chạy downloader sau phép thử Browser Run
   - Tieu chi xong: xác minh nguồn chính thức về chi phí, gắn thẻ, deploy Docker/GitHub và giới hạn; không hứa tải được link trước khi thử.
   - Kết quả: PASS: 01/11/2026 đã mở render.com/docs/free, /docs/your-first-deploy, /docs/docker, /docs/faq. Render có Free Web Service 750 giờ/workspace/tháng, ngủ sau 15 phút, khởi động khoảng một phút; không có payment method thì hết bandwidth/build quota sẽ dừng thay vì tính phí. Hỗ trợ Dockerfile từ repo, phù hợp chạy yt-dlp/ffmpeg. Chưa thử Facebook/TikTok từ Render; chưa có backend được triển khai. yt-dlp chưa cài trên máy, ffmpeg có sẵn. Koyeb FAQ yêu cầu thẻ, HF tạo Docker Space mới cần paid plan nên không chọn trong đề xuất này.
@@ -24,9 +43,17 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
   - Tận dụng: dùng yt-dlp nguyên, ffmpeg nguyên; giữ luồng transcript hiện tại.
   - Tự làm: API thử lấy audio tạm trên Render và kiểm hiệu quả link mẫu, chưa tự thêm CORS/proxy công khai vào web chính.
 
-- [ ] 19. Triển khai Render Free và thử link Facebook thực tế
+- [x] 19. Triển khai Render Free và thử link Facebook thực tế
   - Tieu chi xong: service Free deploy từ cùng repo GitHub, tải được audio hợp lệ từ link mẫu hoặc ghi rõ lỗi thực tế, không báo đạt chỉ vì build thành công.
-  - Kết quả: CHỜ NGƯỜI DÙNG: đã hỏi có tài khoản Render và mở Dashboard đăng nhập sẵn; trong lúc chờ tiếp tục chuẩn bị backend và kiểm cục bộ.
+  - Kết quả: PASS: 01/11/2026 người dùng tự deploy Blueprint từ transcript_me/main (render.yaml plan free) và cung cấp https://transcript-downloader-trial.onrender.com. Agent kiểm GET /health HTTP 200, ok true; POST /trial HTTP 200, ok true, sourceBytes 8487764, audioBytes 4872239, durationSeconds 811.98, codec mp3, sample_rate 16000, channels 1, temporaryFilesDeleted true, elapsedSeconds 49.89, sha256 b60963527792a366eeb4aa5c77d46217bf16f5dd7f0375750aaa0bfbc91a6775. Đây là kết quả downloader/ffprobe thực thi trên Render với link mẫu cố định; chưa nghe audio, chưa nối vào website hoặc kiểm transcript.
+
+- [x] 21. Giữ service Render thức theo yêu cầu người dùng
+  - Tieu chi xong: có lịch GET /health dưới 15 phút, kiểm phản hồi HTTP 200 và giờ Free dùng chung workspace; không cam kết hoạt động liên tục khi hết quota hoặc Render restart.
+  - Kết quả: PASS: người dùng xác nhận đã tạo cronjob theo hướng dẫn mỗi 10 phút và kết quả HTTP 200. Agent đã kiểm GET /health HTTP 200 trên service này ngày 01/11/2026. Đây là xác nhận cấu hình/chạy thử của người dùng, chưa phải theo dõi uptime dài hạn. Đã kiểm tài liệu Render Free: ngủ sau 15 phút, 750 giờ/workspace/tháng và có thể restart. Dashboard còn service zalo-bot-tamquoc; đã thông báo quota dùng chung, chưa xác minh gói/giờ sử dụng của service đó.
+  - Có sẵn: GET /health trong downloader-trial/server.py; cron-job.org có lịch HTTP miễn phí, đã mở trang chính thức.
+  - Tận dụng: endpoint health hiện có; đề xuất dịch vụ lập lịch ngoài, không thêm dependency vào repo.
+  - Tự làm: kết nối URL service thật với lịch sau khi deploy.
+  - Nguồn: https://render.com/docs/free ; https://cron-job.org/en/
 
 - [x] 13. Nghiên cứu cách xử lý link Facebook/TikTok theo yêu cầu ngày 31/10/2026
   - Tieu chi xong: đối chiếu code hiện tại với công cụ có sẵn và tài liệu chính thức; nêu phương án thử, chi phí, giới hạn, bằng chứng và quyết định cần người dùng duyệt.
