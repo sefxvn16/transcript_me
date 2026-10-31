@@ -43,8 +43,19 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 - [ ] 8. Sửa lỗi Gemini "User location is not supported" (Function chạy ở HKG, Hồng Kông không được Gemini hỗ trợ)
   - Tiêu chí xong: /api/youtube với lang=vi trên video mẫu trả về method "Gemini API" có nội dung
-  - Kết quả: CHỜ NGƯỜI DÙNG: đã push placement gcp:asia-southeast1 (commit 370852e); sau deploy vẫn lỗi "User location is not supported" (thử đơn lẻ sau 4 phút) → Pages không áp dụng placement hint. Lưu ý: free tier gemini-3.8-flash chỉ 20 request/ngày, request bị chặn vị trí vẫn bị tính. Người dùng chọn tách Worker riêng. Đã viết gemini-worker/ (proxy không giữ secret, placement gcp:asia-southeast1), Pages gọi qua GEMINI_PROXY_URL, thêm flag global_fetch_strictly_public; node --check OK. Đã push f70c5c8 + a4f01dd; Worker https://transcript-gemini.namdongplus.workers.dev chạy (gọi Google không key → 403, không còn lỗi vị trí). Thử 1 lần qua Pages: hết lỗi vị trí, nhưng gemini-3.8-flash báo quá tải. Đã push tự chuyển model (3f63680, 8c531fe: chỉ 3.8-flash → 3.6-flash) và báo lý do khi rỗng (0474b4f). Thử video bài hát: Gemini trả rỗng (nghi bản quyền). Thử video lời nói 19 giây: lỗi 524 (Cloudflare hết thời gian chờ ~100 giây). Đã quá 3 vòng sửa → dừng hỏi; người dùng chọn gọi Gemini từ trình duyệt, nhập key một lần mỗi thiết bị (localStorage). Đã chuyển code Gemini sang public/app.js, /api/youtube chỉ trả phụ đề, xóa gemini-worker/ và GEMINI_PROXY_URL, cập nhật README
+  - Kết quả: CHỜ NGƯỜI DÙNG: đã push placement gcp:asia-southeast1 (commit 370852e); sau deploy vẫn lỗi "User location is not supported" (thử đơn lẻ sau 4 phút) → Pages không áp dụng placement hint. Lưu ý: free tier gemini-3.8-flash chỉ 20 request/ngày, request bị chặn vị trí vẫn bị tính. Người dùng chọn tách Worker riêng. Đã viết gemini-worker/ (proxy không giữ secret, placement gcp:asia-southeast1), Pages gọi qua GEMINI_PROXY_URL, thêm flag global_fetch_strictly_public; node --check OK. Đã push f70c5c8 + a4f01dd; Worker https://transcript-gemini.namdongplus.workers.dev chạy (gọi Google không key → 403, không còn lỗi vị trí). Thử 1 lần qua Pages: hết lỗi vị trí, nhưng gemini-3.8-flash báo quá tải. Đã push tự chuyển model (3f63680, 8c531fe: chỉ 3.8-flash → 3.6-flash) và báo lý do khi rỗng (0474b4f). Thử video bài hát: Gemini trả rỗng (nghi bản quyền). Thử video lời nói 19 giây: lỗi 524 (Cloudflare hết thời gian chờ ~100 giây). Đã quá 3 vòng sửa → dừng hỏi; người dùng chọn gọi Gemini từ trình duyệt, nhập key một lần mỗi thiết bị (localStorage). Đã chuyển code Gemini sang public/app.js, /api/youtube chỉ trả phụ đề, xóa gemini-worker/ và GEMINI_PROXY_URL, cập nhật README; push 07cc28c. Đã kiểm trên web: /api/youtube en → phụ đề 2083 ký tự, vi → text:null; giao diện không có key → mở mục key và báo nhập key; lưu/xóa key trong localStorage đúng. Còn lại: người dùng nhập key thật và thử 1 video không có phụ đề
   - Kiểm bởi: tôi
+
+- [x] 9. Thêm nút Lưu key và ẩn ô nhập sau khi lưu
+  - Tieu chi xong: bấm Lưu hoặc Enter thì lưu trên thiết bị và ẩn ô; tải lại vẫn ẩn; Đổi key mở lại ô nhập.
+  - Ket qua: PASS: 2026-10-31 đã sửa trực tiếp theo xác nhận; kiểm node --check và mô phỏng DOM với key giả: lưu, đóng, mở lại, Enter đều đạt. Chưa kiểm giao diện trên trình duyệt thật ở lượt này.
+  - Có sẵn: public/app.js có loadKey/saveKey, public/index.html có details settings; đã đọc code.
+  - Tận dụng: chỉnh các thành phần hiện có, không thêm dependency.
+  - Tự làm: nút Lưu key, Đổi key và trạng thái lưu; xử lý Enter.
+
+- [ ] 10. Chẩn đoán link Facebook người dùng gửi
+  - Tieu chi xong: link share/v/1cJ7U3xjpA trả transcript hoặc xác định bước thất bại bằng kết quả thật.
+  - Ket qua: FAIL: 2026-10-31 link chia sẻ từ máy này trả HTTP 200, chuyển tới /groups/sacmaucuocsongxaque/permalink/4749560085324241/; API Pages trả 502 kèm Facebook HTTP 400 cho cả link chia sẻ lẫn link bài gốc. Thất bại ở bước tải trang, trước khi bóc media. Chưa xác định nguyên nhân HTTP 400; không đủ bằng chứng kết luận chặn bot. Dự phòng upload đã được duyệt.
 
 <!-- Kết quả hợp lệ:
   PASS: <bằng chứng cụ thể>   (rồi đổi [ ] thành [x])

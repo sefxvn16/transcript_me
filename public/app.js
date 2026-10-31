@@ -20,8 +20,30 @@ function saveKey(key) {
     if (key) localStorage.setItem(KEY_STORAGE, key);
     else localStorage.removeItem(KEY_STORAGE);
   } catch {
-    // storage blocked (private mode): the key still works for this page load
+    return false;
   }
+  return true;
+}
+
+function showKeySaved(saved) {
+  $("settings").classList.toggle("hidden", saved);
+  $("key-saved").classList.toggle("hidden", !saved);
+  $("settings").open = !saved;
+}
+
+function submitKey() {
+  const key = $("gemini-key").value.trim();
+  if (!key) {
+    $("key-status").textContent = "Hãy dán API key trước khi lưu.";
+    return;
+  }
+  if (!saveKey(key)) {
+    $("key-status").textContent = "Trình duyệt không cho lưu key. Key chỉ dùng được trong lần mở trang này.";
+    return;
+  }
+  $("gemini-key").value = key;
+  $("key-status").textContent = "";
+  showKeySaved(true);
 }
 
 function setStatus(msg) {
@@ -62,6 +84,7 @@ function isFacebook(url) {
 async function transcribeWithGemini(url, lang) {
   const apiKey = $("gemini-key").value.trim();
   if (!apiKey) {
+    showKeySaved(false);
     $("settings").open = true;
     $("gemini-key").focus();
     throw new Error("Video không có phụ đề. Nhập Gemini API key ở mục bên trên rồi bấm lại.");
@@ -273,7 +296,15 @@ function download(ext) {
 }
 
 $("gemini-key").value = loadKey();
-$("gemini-key").addEventListener("change", (e) => saveKey(e.target.value.trim()));
+showKeySaved(Boolean($("gemini-key").value));
+$("save-key").addEventListener("click", submitKey);
+$("gemini-key").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitKey(); }
+});
+$("change-key").addEventListener("click", () => {
+  showKeySaved(false);
+  $("gemini-key").focus();
+});
 $("run").addEventListener("click", run);
 $("cancel").addEventListener("click", () => activeJob?.abort());
 $("url").addEventListener("input", () => { if ($("url").value.trim()) $("file").value = ""; });

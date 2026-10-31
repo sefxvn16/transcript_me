@@ -43,11 +43,17 @@
     </select>
     <p class="hint">Chép bằng ngôn ngữ gốc, không dịch. Với YouTube, ưu tiên phụ đề của ngôn ngữ đã chọn; nếu không có, dùng phụ đề có sẵn.</p>
   </div>
+  <div class="row hidden" id="key-saved">
+    <span>Đã lưu key trên thiết bị này.</span>
+    <button id="change-key" type="button">Đổi key</button>
+  </div>
   <details class="row" id="settings">
     <summary>Gemini API key (cho video YouTube không có phụ đề)</summary>
     <p>Nhập một lần trên mỗi thiết bị; key chỉ lưu trong trình duyệt này. Lấy key ở aistudio.google.com.</p>
     <label for="gemini-key">API key của bạn</label>
     <input id="gemini-key" type="password" autocomplete="off" placeholder="Dán key vào đây">
+    <button id="save-key" type="button">Lưu key</button>
+    <p id="key-status" role="status"></p>
   </details>
   <div class="row">
     <button id="run">Lấy transcript</button>
