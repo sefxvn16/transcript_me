@@ -28,7 +28,7 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 - [ ] 5. Thử cục bộ bằng Node: lib/youtube.js lấy được phụ đề video mẫu; lib/facebook.js bóc được link video từ 1 link Facebook công khai
   - Tiêu chí xong: in ra transcript phụ đề; in ra URL fbcdn (cần link mẫu từ người dùng)
-  - Kết quả: CHỜ NGƯỜI DÙNG: phần YouTube đã đạt (dQw4w9WgXcQ → phụ đề en 60 dòng; parse ID 5 dạng link đúng; chọn "vi" → null để chuyển Gemini). Phần Facebook cần người dùng gửi 1–2 link video công khai để thử
+  - Kết quả: CHỜ NGƯỜI DÙNG: phần YouTube đã đạt (dQw4w9WgXcQ → phụ đề en 60 dòng; parse ID 5 dạng link đúng; chọn "vi" → null để chuyển Gemini). Phần Facebook: trên web thật Facebook trả HTTP 400 cho request từ Cloudflare (chặn truy cập tự động). Thử giả lập thêm header trình duyệt bị công cụ chặn vì là vượt cơ chế chống bot → không theo hướng này. Cần người dùng chọn: giữ thử tự động + dự phòng upload, hay bỏ nhánh link Facebook
   - Kiểm bởi: tôi
 
 - [x] 6. README hướng dẫn: tạo repo GitHub, kết nối Cloudflare Pages, đặt GEMINI_API_KEY, bật Cloudflare Access
@@ -43,7 +43,7 @@ Phạm vi: Miễn phí hoàn toàn; chỉ cập nhật GitHub, Cloudflare Pages 
 
 - [ ] 8. Sửa lỗi Gemini "User location is not supported" (Function chạy ở HKG, Hồng Kông không được Gemini hỗ trợ)
   - Tiêu chí xong: /api/youtube với lang=vi trên video mẫu trả về method "Gemini API" có nội dung
-  - Kết quả: CHỜ NGƯỜI DÙNG: đã push placement gcp:asia-southeast1 (commit 370852e); sau deploy vẫn lỗi "User location is not supported" (thử đơn lẻ sau 4 phút) → Pages không áp dụng placement hint. Lưu ý: free tier gemini-3.8-flash chỉ 20 request/ngày, request bị chặn vị trí vẫn bị tính. Người dùng chọn tách Worker riêng. Đã viết gemini-worker/ (proxy không giữ secret, placement gcp:asia-southeast1), Pages gọi qua GEMINI_PROXY_URL, thêm flag global_fetch_strictly_public; node --check OK. Đã push f70c5c8 + a4f01dd; Worker https://transcript-gemini.namdongplus.workers.dev chạy (gọi Google không key → 403, không còn lỗi vị trí). Thử 1 lần qua Pages: hết lỗi vị trí, nhưng gemini-3.8-flash báo quá tải. Đã thêm tự chuyển model khi 429/503 (3.8-flash → 3.6-flash → 3.5-flash-lite, tên lấy từ trang models chính thức), node --check OK, chưa push
+  - Kết quả: CHỜ NGƯỜI DÙNG: đã push placement gcp:asia-southeast1 (commit 370852e); sau deploy vẫn lỗi "User location is not supported" (thử đơn lẻ sau 4 phút) → Pages không áp dụng placement hint. Lưu ý: free tier gemini-3.8-flash chỉ 20 request/ngày, request bị chặn vị trí vẫn bị tính. Người dùng chọn tách Worker riêng. Đã viết gemini-worker/ (proxy không giữ secret, placement gcp:asia-southeast1), Pages gọi qua GEMINI_PROXY_URL, thêm flag global_fetch_strictly_public; node --check OK. Đã push f70c5c8 + a4f01dd; Worker https://transcript-gemini.namdongplus.workers.dev chạy (gọi Google không key → 403, không còn lỗi vị trí). Thử 1 lần qua Pages: hết lỗi vị trí, nhưng gemini-3.8-flash báo quá tải. Đã push tự chuyển model (3f63680, 8c531fe: chỉ 3.8-flash → 3.6-flash) và báo lý do khi rỗng (0474b4f). Thử video bài hát: Gemini trả rỗng (nghi bản quyền). Thử video lời nói 19 giây: lỗi 524 (Cloudflare hết thời gian chờ ~100 giây). Đã quá 3 vòng sửa → dừng hỏi; người dùng chọn gọi Gemini từ trình duyệt, nhập key một lần mỗi thiết bị (localStorage). Đã chuyển code Gemini sang public/app.js, /api/youtube chỉ trả phụ đề, xóa gemini-worker/ và GEMINI_PROXY_URL, cập nhật README
   - Kiểm bởi: tôi
 
 <!-- Kết quả hợp lệ:

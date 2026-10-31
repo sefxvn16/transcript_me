@@ -1,12 +1,6 @@
 name = "transcript"
 pages_build_output_dir = "public"
 compatibility_date = "2026-10-01"
-# Lets Functions fetch another Worker on workers.dev in the same account (otherwise error 1042).
-compatibility_flags = ["global_fetch_strictly_public"]
 
 [ai]
 binding = "AI"
-
-# Gemini calls go through gemini-worker/, which runs near Singapore (Pages ignores placement hints).
-[vars]
-GEMINI_PROXY_URL = "https://transcript-gemini.namdongplus.workers.dev"

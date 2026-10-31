@@ -1,8 +1,27 @@
 const SAMPLE_RATE = 16000;
 const CHUNK_SECONDS = 30;
+const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"];
+const KEY_STORAGE = "gemini-api-key";
 
 const $ = (id) => document.getElementById(id);
 let last = null; // { text, source, method }
+
+function loadKey() {
+  try {
+    return localStorage.getItem(KEY_STORAGE) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveKey(key) {
+  try {
+    if (key) localStorage.setItem(KEY_STORAGE, key);
+    else localStorage.removeItem(KEY_STORAGE);
+  } catch {
+    // storage blocked (private mode): the key still works for this page load
+  }
+}
 
 function setStatus(msg) {
   $("status").textContent = msg;
@@ -26,6 +45,44 @@ function isYouTube(url) {
 function isFacebook(url) {
   const host = new URL(url).hostname;
   return /(^|\.)facebook\.com$/.test(host) || host === "fb.watch";
+}
+
+// Called from the browser: the user's own network is in a Gemini-supported region and has no 100 s proxy timeout.
+async function transcribeWithGemini(url, lang) {
+  const apiKey = $("gemini-key").value.trim();
+  if (!apiKey) {
+    $("settings").open = true;
+    throw new Error("Video không có phụ đề. Nhập Gemini API key ở mục bên trên rồi bấm lại.");
+  }
+  const langHint = lang === "vi" ? " The speech is in Vietnamese." : lang === "en" ? " The speech is in English." : "";
+  const prompt =
+    "Transcribe the spoken audio of this video verbatim, in its original language." +
+    langHint +
+    " Output only the transcript text split into paragraphs. Do not summarize, translate, add timestamps or add comments.";
+  let lastError;
+  // Each model has its own free quota; move on when one is overloaded or out of quota.
+  for (const model of GEMINI_MODELS) {
+    setStatus(`Video không có phụ đề, đang nhờ Gemini (${model}) chép... có thể mất vài phút`);
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { file_data: { file_uri: url } }] }] }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 429 || res.status === 503) {
+      lastError = new Error(`${model}: ${data?.error?.message || res.status}`);
+      continue;
+    }
+    if (!res.ok) throw new Error(`Gemini: ${data?.error?.message || res.status}`);
+    const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("").trim();
+    if (!text) {
+      const reason = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason || "không rõ";
+      const hint = reason === "RECITATION" ? " (nội dung có bản quyền, ví dụ lời bài hát)" : "";
+      throw new Error(`Gemini không trả về nội dung, lý do: ${reason}${hint}`);
+    }
+    return { text, method: `Gemini (${model})` };
+  }
+  throw lastError;
 }
 
 // Decode any audio/video the browser can play, then downmix and resample to 16 kHz mono.
@@ -110,8 +167,9 @@ async function run() {
       method = "Whisper (Workers AI)";
     } else if (url && isYouTube(url)) {
       source = url;
-      setStatus("Đang lấy transcript YouTube (phụ đề hoặc Gemini)...");
+      setStatus("Đang tìm phụ đề YouTube...");
       ({ text, method } = await postJson("/api/youtube", { url, lang }));
+      if (!text) ({ text, method } = await transcribeWithGemini(url, lang));
     } else if (url && isFacebook(url)) {
       source = url;
       setStatus("Đang tìm video trong link Facebook...");
@@ -149,6 +207,8 @@ function download(ext) {
   URL.revokeObjectURL(a.href);
 }
 
+$("gemini-key").value = loadKey();
+$("gemini-key").addEventListener("change", (e) => saveKey(e.target.value.trim()));
 $("run").addEventListener("click", run);
 $("copy").addEventListener("click", () => navigator.clipboard.writeText($("output").value));
 $("dl-txt").addEventListener("click", () => download("txt"));
