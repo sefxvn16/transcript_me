@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Audiobook Studio - Giọng nói Azure Speech</title>
+    <!-- Tailwind CSS qua CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="min-h-full flex flex-col text-slate-800 bg-gradient-to-br from-slate-50 via-indigo-50/20 to-slate-100">
+
+    <!-- HEADER -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        PDF Audiobook Studio
+                        <span class="text-[10px] uppercase tracking-wider font-extrabold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Local AI</span>
+                    </h1>
+                    <p class="text-xs text-slate-500">Chuyển sách PDF / Word thành giọng nói với Microsoft Azure Speech (Neural)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Azure Speech Sẵn sàng
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- THÔNG TIN ĐẦU VÀO VÀ CẤU HÌNH -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-6">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Bước 1: Chọn Tài Liệu & Cấu Hình Giọng Nói
+                </h2>
+                <span class="text-xs text-slate-400">Hỗ trợ PDF, Word (.docx), Google Drive & OneDrive</span>
+            </div>
+
+            <!-- TÙY CHỌN NGUỒN FILE: TẢI LÊN HOẶC LIÊN KẾT -->
+            <div class="space-y-4">
+                <div class="flex border-b border-slate-200">
+                    <button id="tabUploadBtn" class="py-2 px-4 text-xs font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Tải file PDF / Word (.docx)
+                    </button>
+                    <button id="tabUrlBtn" class="py-2 px-4 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        Nhập link Google Drive / OneDrive / URL trực tiếp
+                    </button>
+                </div>
+
+                <!-- KHU VỰC TẢI FILE KÉO THẢ -->
+                <div id="uploadArea" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-indigo-500 transition-colors bg-slate-50/50 cursor-pointer">
+                    <input type="file" id="pdfFileInput" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden">
+                    <div class="flex flex-col items-center justify-center gap-2" id="uploadPlaceholder">
+                        <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        </div>
+                        <p class="text-sm font-medium text-slate-700">Kéo và thả file PDF hoặc Word (.docx) vào đây hoặc <span class="text-indigo-600 underline font-semibold">bấm để chọn file</span></p>
+                        <p class="text-xs text-slate-400">Dung lượng tối đa khuyến nghị: 100MB</p>
+                    </div>
+                    <div id="fileSelectedInfo" class="hidden items-center justify-center gap-3">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </span>
+                        <div class="text-left">
+                            <p class="text-sm font-semibold text-slate-800" id="selectedFileName">filename.pdf</p>
+                            <p class="text-xs text-slate-500" id="selectedFileSize">0 MB</p>
+                        </div>
+                        <button type="button" id="removeFileBtn" class="ml-4 text-xs text-red-500 hover:underline">Hủy chọn</button>
+                    </div>
+                </div>
+
+                <!-- KHU VỰC NHẬP URL -->
+                <div id="urlArea" class="hidden space-y-2">
+                    <div class="relative">
+                        <input type="url" id="pdfUrlInput" placeholder="Dán liên kết PDF/DOCX (ví dụ: https://drive.google.com/file/d/... hoặc link OneDrive)" 
+                               class="w-full px-4 py-2.5 pl-10 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-500 italic">Lưu ý: Đối với Google Drive và OneDrive, hãy đảm bảo liên kết đã được bật chia sẻ quyền truy cập "Bất kỳ ai có liên kết đều xem được" (Public).</p>
+                </div>
+            </div>
+
+            <!-- CẤU HÌNH GIỌNG NÓI -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <!-- Giọng đọc Azure Speech -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-semibold text-slate-700">Giọng đọc (Azure Neural)</label>
+                    <select id="selectVoice" class="w-full text-xs font-medium border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="vi-VN-HoaiMyNeural" selected>Hoài My (Nữ - Truyền cảm)</option>
+                        <option value="vi-VN-NamMinhNeural">Nam Minh (Nam - Trầm ấm)</option>
+                        <option value="en-US-JennyNeural">Jenny (Nữ - Tiếng Anh)</option>
+                        <option value="en-US-GuyNeural">Guy (Nam - Tiếng Anh)</option>
+                    </select>
+                </div>
+
+                <!-- Tốc độ đọc (Rate) -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-semibold text-slate-700">Tốc độ đọc giọng nói</label>
+                    <select id="selectRate" class="w-full text-xs font-medium border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="-20%">Chậm (-20%)</option>
+                        <option value="+0%" selected>Chuẩn (+0%)</option>
+                        <option value="+10%">Nhanh nhẹ (+10%)</option>
+                        <option value="+20%">Nhanh (+20%)</option>
+                        <option value="+30%">Rất nhanh (+30%)</option>
+                    </select>
+                </div>
+
+                <!-- Tùy chọn gom file MP3 (Chế độ 1) -->
+                <div class="space-y-1.5" id="mergeOptionContainer">
+                    <label class="text-xs font-semibold text-slate-700">Gom file MP3 (Chế độ 1)</label>
+                    <select id="selectMerge" class="w-full text-xs font-medium border border-slate-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="single_file" selected>Gom 1 file MP3 duy nhất</option>
+                        <option value="split_files">Chia từng phần 15-20 phút</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- HAI NÚT BẤM KÍCH HOẠT 2 CHẾ ĐỘ -->
+            <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+                <button type="button" id="btnStartOffline" class="flex-1 py-3 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span>Chế độ 1: Xuất Audio Offline (Tải về máy)</span>
+                </button>
+
+                <button type="button" id="btnStartOnline" class="flex-1 py-3 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-md shadow-indigo-200 hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-200 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>Chế độ 2: Đọc Ngay (Online Web Player)</span>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- KHU VỰC TIẾN TRÌNH CHO CHẾ ĐỘ 1: XUẤT OFFLINE -->
+        <section id="offlineProgressSection" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800" id="offlineTaskTitle">Đang xử lý tài liệu...</h3>
+                    <p class="text-xs text-slate-500" id="offlineStepText">Chuẩn bị tác vụ nền...</p>
+                </div>
+                <span class="text-sm font-extrabold text-indigo-600" id="offlinePercentText">0%</span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div id="offlineProgressBar" class="bg-gradient-to-r from-indigo-500 to-violet-600 h-3 rounded-full transition-all duration-300 w-0"></div>
+            </div>
+
+            <!-- Kết quả hoàn thành Chế độ 1 -->
+            <div id="offlineResultsContainer" class="hidden pt-4 border-t border-slate-100 space-y-3">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Đã hoàn thành! Tải về các file âm thanh:
+                </h4>
+                
+                <div id="offlineFilesList" class="space-y-2"></div>
+
+                <div id="offlineZipAction" class="hidden pt-2">
+                    <a id="offlineZipBtn" href="#" download class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Tải trọn bộ file ZIP (<span id="offlineZipSize">0 MB</span>)
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- KHU VỰC CHẾ ĐỘ 2: TRÌNH PHÁT ONLINE & THEO DÕI VĂN BẢN SONG SONG -->
+        <section id="onlinePlayerSection" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-md p-5 sm:p-6 space-y-6">
+            
+            <!-- HEADER PLAYER -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+                <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">Chế độ 2 - Web Audiobook Player</span>
+                    <h3 class="text-lg font-bold text-slate-900 mt-1" id="playerBookTitle">Tên tác phẩm</h3>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200" id="currentChunkBadge">Đoạn 1 / 1</span>
+                    <span id="playerStatusText" class="text-xs text-slate-500">Sẵn sàng phát</span>
+                </div>
+            </div>
+
+            <!-- AUDIO CONTROLLER BAR -->
+            <div class="bg-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-xl space-y-4">
+                
+                <!-- Thanh tiến trình Audio -->
+                <div class="space-y-1">
+                    <div id="playerProgressBar" class="w-full bg-slate-700/60 rounded-full h-2 cursor-pointer relative group">
+                        <div id="playerProgressFill" class="bg-indigo-500 h-2 rounded-full w-0 group-hover:bg-indigo-400 transition-all"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] text-slate-400">
+                        <span id="playerTimeCurrent">00:00</span>
+                        <span id="playerTimeDuration">00:00</span>
+                    </div>
+                </div>
+
+                <!-- Nút điều khiển -->
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <div class="flex items-center gap-3">
+                        <!-- Nút lùi đoạn -->
+                        <button id="playerPrevBtn" title="Đoạn trước" class="p-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+
+                        <!-- Nút Play/Pause chính -->
+                        <button id="playerPlayPauseBtn" class="w-12 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-900 transition-all transform active:scale-95">
+                            <svg id="playerPlayIcon" class="w-6 h-6 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg>
+                            <svg id="playerPauseIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"></path></svg>
+                        </button>
+
+                        <!-- Nút tiến đoạn -->
+                        <button id="playerNextBtn" title="Đoạn kế tiếp" class="p-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                    </div>
+
+                    <!-- Tùy chỉnh tốc độ phát của trình phát -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400">Tốc độ phát:</span>
+                        <select id="playerSpeedSelect" class="bg-slate-800 text-xs text-white border border-slate-700 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer focus:ring-1 focus:ring-indigo-500">
+                            <option value="0.8">0.8x</option>
+                            <option value="1.0" selected>1.0x (Chuẩn)</option>
+                            <option value="1.2">1.2x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2.0">2.0x</option>
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- KHUNG HIỂN THỊ SONG SONG VĂN BẢN VÀ DANH SÁCH ĐOẠN -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Cột trái: Danh sách các đoạn trong sách -->
+                <div class="lg:col-span-4 border border-slate-200 rounded-xl p-3 bg-slate-50/70 space-y-2">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">Mục lục các đoạn</h4>
+                        <span class="text-[11px] text-slate-400">Bấm để nhảy tới đoạn</span>
+                    </div>
+                    <div id="chunksList" class="max-h-[500px] overflow-y-auto space-y-2 pr-1"></div>
+                </div>
+
+                <!-- Cột phải: Văn bản đang đọc -->
+                <div class="lg:col-span-8 border-2 border-indigo-200 rounded-xl p-4 bg-indigo-50/30 shadow-xs flex flex-col">
+                    <div class="flex items-center justify-between pb-2 mb-2 border-b border-indigo-100">
+                        <span class="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
+                            Đoạn đang đọc
+                        </span>
+                    </div>
+                    <div id="activeText" class="text-sm text-slate-800 leading-relaxed max-h-[460px] overflow-y-auto whitespace-pre-wrap select-text pr-2">
+                        (Nội dung đoạn đang đọc sẽ hiển thị tại đây...)
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-200 bg-white py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-400">
+            PDF Audiobook Studio &copy; Chạy hoàn toàn trên máy cục bộ (Local Server) &bull; Azure Speech &bull; FastAPI
+        </div>
+    </footer>
+
+    <!-- SCRIPT ĐIỀU KHIỂN GIAO DIỆN CHÍNH -->
+    <script src="/static/js/player.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Chuyển tab Upload / URL
+            const tabUploadBtn = document.getElementById("tabUploadBtn");
+            const tabUrlBtn = document.getElementById("tabUrlBtn");
+            const uploadArea = document.getElementById("uploadArea");
+            const urlArea = document.getElementById("urlArea");
+
+            let currentMode = "upload"; // "upload" hoặc "url"
+
+            tabUploadBtn.addEventListener("click", () => {
+                currentMode = "upload";
+                tabUploadBtn.className = "py-2 px-4 text-xs font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2";
+                tabUrlBtn.className = "py-2 px-4 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2";
+                uploadArea.classList.remove("hidden");
+                urlArea.classList.add("hidden");
+            });
+
+            tabUrlBtn.addEventListener("click", () => {
+                currentMode = "url";
+                tabUrlBtn.className = "py-2 px-4 text-xs font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2";
+                tabUploadBtn.className = "py-2 px-4 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2";
+                urlArea.classList.remove("hidden");
+                uploadArea.classList.add("hidden");
+            });
+
+            // Xử lý chọn file kéo thả
+            const pdfFileInput = document.getElementById("pdfFileInput");
+            const uploadPlaceholder = document.getElementById("uploadPlaceholder");
+            const fileSelectedInfo = document.getElementById("fileSelectedInfo");
+            const selectedFileName = document.getElementById("selectedFileName");
+            const selectedFileSize = document.getElementById("selectedFileSize");
+            const removeFileBtn = document.getElementById("removeFileBtn");
+
+            uploadArea.addEventListener("click", (e) => {
+                if (e.target !== removeFileBtn) {
+                    pdfFileInput.click();
+                }
+            });
+
+            uploadArea.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                uploadArea.classList.add("border-indigo-600", "bg-indigo-50/30");
+            });
+
+            uploadArea.addEventListener("dragleave", () => {
+                uploadArea.classList.remove("border-indigo-600", "bg-indigo-50/30");
+            });
+
+            uploadArea.addEventListener("drop", (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove("border-indigo-600", "bg-indigo-50/30");
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    pdfFileInput.files = e.dataTransfer.files;
+                    handleFileSelected();
+                }
+            });
+
+            pdfFileInput.addEventListener("change", handleFileSelected);
+
+            function handleFileSelected() {
+                if (pdfFileInput.files && pdfFileInput.files[0]) {
+                    const f = pdfFileInput.files[0];
+                    selectedFileName.innerText = f.name;
+                    selectedFileSize.innerText = (f.size / (1024 * 1024)).toFixed(2) + " MB";
+                    uploadPlaceholder.classList.add("hidden");
+                    fileSelectedInfo.classList.remove("hidden");
+                    fileSelectedInfo.classList.add("flex");
+                }
+            }
+
+            removeFileBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                pdfFileInput.value = "";
+                uploadPlaceholder.classList.remove("hidden");
+                fileSelectedInfo.classList.add("hidden");
+                fileSelectedInfo.classList.remove("flex");
+            });
+
+            // Lấy thông tin form chung
+            function getFormData() {
+                const formData = new FormData();
+                if (currentMode === "upload") {
+                    if (!pdfFileInput.files || !pdfFileInput.files[0]) {
+                        alert("Vui lòng chọn hoặc kéo thả một file PDF hoặc Word (.docx).");
+                        return null;
+                    }
+                    formData.append("file", pdfFileInput.files[0]);
+                } else {
+                    const url = document.getElementById("pdfUrlInput").value.trim();
+                    if (!url) {
+                        alert("Vui lòng dán liên kết tài liệu PDF/DOCX (Google Drive, OneDrive hoặc link trực tiếp).");
+                        return null;
+                    }
+                    formData.append("url", url);
+                }
+
+                formData.append("voice", document.getElementById("selectVoice").value);
+                formData.append("rate", document.getElementById("selectRate").value);
+                formData.append("merge_option", document.getElementById("selectMerge").value);
+
+                return formData;
+            }
+
+            // XỬ LÝ CHẾ ĐỘ 1: XUẤT AUDIO OFFLINE
+            const btnStartOffline = document.getElementById("btnStartOffline");
+            const offlineProgressSection = document.getElementById("offlineProgressSection");
+            const offlineTaskTitle = document.getElementById("offlineTaskTitle");
+            const offlineStepText = document.getElementById("offlineStepText");
+            const offlinePercentText = document.getElementById("offlinePercentText");
+            const offlineProgressBar = document.getElementById("offlineProgressBar");
+            const offlineResultsContainer = document.getElementById("offlineResultsContainer");
+            const offlineFilesList = document.getElementById("offlineFilesList");
+            const offlineZipAction = document.getElementById("offlineZipAction");
+            const offlineZipBtn = document.getElementById("offlineZipBtn");
+            const offlineZipSize = document.getElementById("offlineZipSize");
+
+            let offlinePollInterval = null;
+
+            btnStartOffline.addEventListener("click", async () => {
+                const formData = getFormData();
+                if (!formData) return;
+
+                btnStartOffline.disabled = true;
+                btnStartOffline.classList.add("opacity-60", "cursor-not-allowed");
+
+                // Reset giao diện progress
+                offlineProgressSection.classList.remove("hidden");
+                offlineResultsContainer.classList.add("hidden");
+                offlineFilesList.innerHTML = "";
+                offlineZipAction.classList.add("hidden");
+                offlineProgressBar.style.width = "0%";
+                offlinePercentText.innerText = "0%";
+                offlineStepText.innerText = "Đang gửi yêu cầu và phân tích tài liệu...";
+                offlineProgressSection.scrollIntoView({ behavior: "smooth" });
+
+                try {
+                    const resp = await fetch("/api/process/offline", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    if (!resp.ok) {
+                        const err = await resp.json();
+                        throw new Error(err.detail || "Lỗi khởi tạo tác vụ.");
+                    }
+
+                    const data = await resp.json();
+                    offlineTaskTitle.innerText = `Đang xử lý: ${data.title}`;
+                    startPollingOfflineStatus(data.task_id);
+
+                } catch (e) {
+                    alert("Lỗi: " + e.message);
+                    btnStartOffline.disabled = false;
+                    btnStartOffline.classList.remove("opacity-60", "cursor-not-allowed");
+                }
+            });
+
+            function startPollingOfflineStatus(taskId) {
+                if (offlinePollInterval) clearInterval(offlinePollInterval);
+
+                offlinePollInterval = setInterval(async () => {
+                    try {
+                        const resp = await fetch(`/api/process/offline/status/${taskId}`);
+                        if (!resp.ok) return;
+
+                        const task = await resp.json();
+                        const p = task.progress || 0;
+                        offlineProgressBar.style.width = `${p}%`;
+                        offlinePercentText.innerText = `${p}%`;
+                        offlineStepText.innerText = task.current_step || "";
+
+                        if (task.status === "COMPLETED") {
+                            clearInterval(offlinePollInterval);
+                            btnStartOffline.disabled = false;
+                            btnStartOffline.classList.remove("opacity-60", "cursor-not-allowed");
+                            renderOfflineResults(task);
+                        } else if (task.status === "FAILED") {
+                            clearInterval(offlinePollInterval);
+                            btnStartOffline.disabled = false;
+                            btnStartOffline.classList.remove("opacity-60", "cursor-not-allowed");
+                            offlineStepText.innerText = `❌ Lỗi: ${task.error}`;
+                            offlineStepText.className = "text-xs font-semibold text-red-500";
+                        }
+                    } catch (err) {
+                        console.error("Lỗi poll status:", err);
+                    }
+                }, 2000);
+            }
+
+            function renderOfflineResults(task) {
+                offlineResultsContainer.classList.remove("hidden");
+                offlineFilesList.innerHTML = "";
+
+                if (task.output_files && task.output_files.length > 0) {
+                    task.output_files.forEach(f => {
+                        const item = document.createElement("div");
+                        item.className = "flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200";
+                        item.innerHTML = `
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                                </span>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">${f.filename}</p>
+                                    <p class="text-[11px] text-slate-500">${f.size_mb} MB</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <audio controls src="${f.download_url}" class="h-8 max-w-[200px]"></audio>
+                                <a href="${f.download_url}" download="${f.filename}" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Tải về
+                                </a>
+                            </div>
+                        `;
+                        offlineFilesList.appendChild(item);
+                    });
+                }
+
+                // File ZIP
+                if (task.zip_file) {
+                    offlineZipAction.classList.remove("hidden");
+                    offlineZipBtn.href = task.zip_file.download_url;
+                    offlineZipSize.innerText = `${task.zip_file.size_mb} MB`;
+                }
+            }
+
+            // XỬ LÝ CHẾ ĐỘ 2: ĐỌC TRỰC TUYẾN
+            const btnStartOnline = document.getElementById("btnStartOnline");
+            btnStartOnline.addEventListener("click", async () => {
+                const formData = getFormData();
+                if (!formData) return;
+
+                btnStartOnline.disabled = true;
+                btnStartOnline.classList.add("opacity-60", "cursor-not-allowed");
+                btnStartOnline.innerHTML = `
+                    <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                    <span>Đang khởi tạo Player & Đoạn 1...</span>
+                `;
+
+                try {
+                    const resp = await fetch("/api/player/init", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    if (!resp.ok) {
+                        const err = await resp.json();
+                        throw new Error(err.detail || "Không thể khởi tạo phiên đọc.");
+                    }
+
+                    const sessionData = await resp.json();
+                    
+                    // Khởi động AudiobookPlayer
+                    window.audiobookPlayer.startSession(sessionData);
+
+                } catch (e) {
+                    alert("Lỗi khởi tạo Chế độ 2: " + e.message);
+                } finally {
+                    btnStartOnline.disabled = false;
+                    btnStartOnline.classList.remove("opacity-60", "cursor-not-allowed");
+                    btnStartOnline.innerHTML = `
+                        <svg class="w-5 h-5 text-indigo-200 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>Chế độ 2: Đọc Ngay (Online Web Player)</span>
+                    `;
+                }
+            });
+
+        });
+    </script>
+</body>
+</html>

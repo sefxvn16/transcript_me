@@ -4,3 +4,4 @@ node_modules/
 _backup/
 .claude/settings.local.json
 __pycache__/
+.env

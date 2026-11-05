@@ -18,13 +18,21 @@
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
     <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 4h14M12 4v16m-4 0h8M5 4v3m14-3v3"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm12 0a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5-12-7.5Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14m8-14v14"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5v14m13-13-9 6 9 6V6Z"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M18 5v14M5 6l9 6-9 6V6Z"/></symbol>
   </defs></svg>
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="./" aria-label="Transcript — Trang chủ"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-wave"/></svg></span>Transcript<span class="brand-dot">.</span></a>
-      <span class="header-note">Lắng nghe. Chuyển thành chữ.</span>
+      <nav class="mode-switch" aria-label="Chọn công cụ">
+        <a id="mode-transcript" href="#transcript" aria-current="page"><svg class="icon" aria-hidden="true"><use href="#i-text"/></svg>Transcript</a>
+        <a id="mode-tts" href="#tts"><svg class="icon" aria-hidden="true"><use href="#i-speaker"/></svg>Text to Speech</a>
+      </nav>
     </header>
-    <main>
+    <main id="view-transcript">
       <section class="intro" aria-labelledby="page-title">
         <p class="eyebrow"><span></span> Ít gõ hơn, nhiều ý tưởng hơn</p>
         <h1 id="page-title">Từ lời nói<br> thành <span>văn bản.</span></h1>
@@ -75,8 +83,81 @@
         </section>
       </div>
     </main>
+    <main id="view-tts" hidden>
+      <section class="intro" aria-labelledby="tts-title">
+        <p class="eyebrow"><span></span> Nghe sách trên đường đi</p>
+        <h1 id="tts-title">Từ văn bản<br> thành <span>giọng nói.</span></h1>
+        <p class="intro-description">Chọn file PDF hoặc Word, hoặc dán link Google Drive, OneDrive.<br class="desktop-break"> Nghe ngay trên trình duyệt hoặc tải MP3 về để nghe khi không có mạng.</p>
+        <div class="intro-art" aria-hidden="true"><div class="text-lines"><i></i><i></i><i></i><i></i></div><span class="art-arrow">→</span><div class="wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      </section>
+      <div class="workspace">
+        <section class="panel source-panel" aria-labelledby="tts-source-heading">
+          <div class="panel-heading"><span class="step">01</span><h2 id="tts-source-heading">Thêm tài liệu</h2></div>
+          <div class="source-switch" role="group" aria-label="Chọn nguồn tài liệu">
+            <button id="tts-source-file" type="button" aria-pressed="true" aria-controls="tts-file-fields"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>Chọn file</button>
+            <button id="tts-source-link" type="button" aria-pressed="false" aria-controls="tts-link-fields"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg>Dán link</button>
+          </div>
+          <div id="tts-file-fields" class="source-fields">
+            <label for="tts-file">File PDF hoặc Word</label>
+            <div class="file-picker"><svg class="icon upload-icon" aria-hidden="true"><use href="#i-upload"/></svg><span class="file-prompt">Chọn file từ thiết bị</span><span id="tts-file-name" class="hint">PDF hoặc .docx, tối đa 50 MB</span><input id="tts-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="tts-file-name tts-file-hint"></div>
+            <p id="tts-file-hint" class="hint">File .doc đời cũ hãy lưu lại thành .docx hoặc PDF. PDF dạng ảnh scan không đọc được.</p>
+          </div>
+          <div id="tts-link-fields" class="source-fields hidden">
+            <label for="tts-url">Link tài liệu</label>
+            <input id="tts-url" type="url" inputmode="url" placeholder="Dán link Google Drive, OneDrive hoặc link PDF…" aria-describedby="tts-url-hint" autocomplete="off" spellcheck="false">
+            <p id="tts-url-hint" class="hint">Link cần bật chia sẻ “Bất kỳ ai có đường liên kết”.</p>
+          </div>
+          <div class="field-row">
+            <div><label for="tts-voice">Giọng đọc</label><select id="tts-voice"><option value="vi-VN-HoaiMyNeural">Hoài My (nữ)</option><option value="vi-VN-NamMinhNeural">Nam Minh (nam)</option><option value="en-US-JennyNeural">Jenny (nữ, tiếng Anh)</option><option value="en-US-GuyNeural">Guy (nam, tiếng Anh)</option></select></div>
+            <div><label for="tts-rate">Tốc độ đọc</label><select id="tts-rate"><option value="-20%">Chậm</option><option value="+0%" selected>Bình thường</option><option value="+10%">Nhanh hơn</option><option value="+20%">Nhanh</option><option value="+30%">Rất nhanh</option></select></div>
+          </div>
+          <fieldset class="output-mode">
+            <legend>Cách nghe</legend>
+            <label class="choice"><input type="radio" name="tts-mode" value="stream" checked><span><strong>Nghe ngay</strong><span class="hint">Phát từng đoạn khi đang có mạng.</span></span></label>
+            <label class="choice"><input type="radio" name="tts-mode" value="mp3"><span><strong>Tải MP3</strong><span class="hint">Tạo file để nghe khi không có mạng.</span></span></label>
+          </fieldset>
+          <div id="tts-merge-field" class="language-field hidden">
+            <label for="tts-merge">File MP3</label>
+            <select id="tts-merge"><option value="single_file">Gộp thành 1 file</option><option value="split_files">Chia từng phần khoảng 15–20 phút</option></select>
+          </div>
+          <div class="run-actions"><button id="tts-run" class="primary" type="button">Bắt đầu đọc<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button id="tts-cancel" class="stop hidden" type="button">Dừng</button></div>
+          <p id="tts-status" class="status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <p class="source-footer"><svg class="icon" aria-hidden="true"><use href="#i-speaker"/></svg> Giọng Microsoft Azure. Không dịch, đọc đúng nội dung gốc.</p>
+        </section>
+        <section class="panel result-panel" aria-labelledby="tts-result-heading">
+          <div class="panel-heading result-heading"><span class="step">02</span><h2 id="tts-result-heading">Nghe</h2><span id="tts-badge" class="badge">Chưa có tài liệu</span></div>
+          <div id="tts-empty" class="empty-result">
+            <div class="paper-art" aria-hidden="true"><span class="paper-symbol"><svg class="icon"><use href="#i-text"/></svg></span><i></i><i></i><i></i><i></i><span class="paper-wave"><svg class="icon"><use href="#i-speaker"/></svg></span></div>
+            <h3>Tài liệu của bạn, ở dạng giọng nói.</h3>
+            <p>Thêm file hoặc link rồi chọn <strong>Bắt đầu đọc.</strong><br>Trình phát hoặc file MP3 sẽ xuất hiện ở đây.</p>
+            <div class="empty-formats"><span>PDF</span><span>Word</span><span>MP3</span></div>
+          </div>
+          <div id="tts-player" class="hidden">
+            <p id="tts-book" class="book-title"></p>
+            <div class="player-bar">
+              <div id="tts-progress" class="progress" role="slider" tabindex="0" aria-label="Vị trí trong đoạn" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="tts-progress-fill"></i></div>
+              <div class="player-times"><span id="tts-time">00:00</span><span id="tts-duration">00:00</span></div>
+              <div class="player-controls">
+                <button id="tts-prev" type="button" aria-label="Đoạn trước"><svg class="icon" aria-hidden="true"><use href="#i-prev"/></svg></button>
+                <button id="tts-play" class="play" type="button" aria-label="Phát"><svg class="icon" aria-hidden="true"><use id="tts-play-icon" href="#i-play"/></svg></button>
+                <button id="tts-next" type="button" aria-label="Đoạn tiếp"><svg class="icon" aria-hidden="true"><use href="#i-next"/></svg></button>
+                <label class="speed"><span class="sr-only">Tốc độ phát</span><select id="tts-speed"><option value="0.8">0.8×</option><option value="1" selected>1×</option><option value="1.2">1.2×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+              </div>
+            </div>
+            <p id="tts-now" class="now-label"></p>
+            <div id="tts-text" class="reading-text" tabindex="0" aria-label="Nội dung đoạn đang đọc"></div>
+            <details class="chunk-list"><summary>Danh sách đoạn</summary><ol id="tts-chunks"></ol></details>
+          </div>
+          <div id="tts-files" class="hidden">
+            <p id="tts-files-note" class="hint"></p>
+            <ul id="tts-file-list" class="file-list"></ul>
+          </div>
+        </section>
+      </div>
+    </main>
     <footer class="site-footer"><span>Transcript<span class="brand-dot">.</span></span><p>Từ video, audio đến những dòng chữ.<br><strong>© 2026 A Seafox Product.</strong></p></footer>
   </div>
   <script src="app.js"></script>
+  <script type="module" src="tts.js"></script>
 </body>
 </html>
