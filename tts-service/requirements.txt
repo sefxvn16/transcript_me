@@ -8,6 +8,7 @@ python-multipart>=0.0.9
 # Text-to-Speech: Azure Speech REST API gọi bằng requests (không cần SDK)
 # Đọc PDF và Word (.docx)
 pypdfium2>=4.30.0
+Pillow>=10.0  # chuyển trang PDF ảnh thành JPEG để OCR
 python-docx>=1.1.0
 
 # Tải tài liệu qua link Google Drive & OneDrive & Direct URL, gọi Azure Speech

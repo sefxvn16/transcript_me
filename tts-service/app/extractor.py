@@ -293,16 +293,14 @@ MIN_SECTION_CHARS = 300
 # Khi tài liệu không có mục lục/heading: chia theo dung lượng, ~20 phút đọc mỗi phần
 FALLBACK_SECTION_CHARS = 18000
 
-IMAGE_PDF_MESSAGE = (
-    "PDF này có {n} trang nhưng không có lớp chữ: đây là PDF dạng ảnh (scan, chụp hoặc "
-    "'Print to PDF' từ ảnh). App chưa đọc được loại file này; hãy dùng bản PDF/Word có chữ chọn được."
-)
+# PDF dạng ảnh (không có lớp chữ): chia theo trang để OCR từng phần người dùng chọn
+OCR_PAGES_PER_SECTION = 15
 
 
 def _pdf_pages_and_bookmarks(pdf_path: Path):
     """
     PDF: lấy chữ từng trang bằng pdfium (nhanh, ít RAM: sách 259 trang < 1s) và mục lục (bookmark).
-    Trả về (danh sách chữ từng trang đã làm sạch, [(cấp, chỉ số trang, tiêu đề)]).
+    Trả về (chữ từng trang đã làm sạch, [(cấp, chỉ số trang, tiêu đề)], là PDF dạng ảnh?).
     """
     raw_pages: List[str] = []
     bookmarks = []
@@ -328,9 +326,42 @@ def _pdf_pages_and_bookmarks(pdf_path: Path):
 
     pages = remove_repetitive_headers_and_footers(raw_pages)
     # Chỉ có watermark/số trang lặp lại (đã bị loại) cũng tính là không có lớp chữ
-    if raw_pages and not any(p.strip() for p in pages):
-        raise ValueError(IMAGE_PDF_MESSAGE.format(n=len(raw_pages)))
-    return pages, bookmarks
+    is_image = bool(raw_pages) and not any(p.strip() for p in pages)
+    return pages, bookmarks, is_image
+
+
+def _image_pdf_sections(page_count: int, bookmarks: List[tuple]) -> List[Dict[str, Any]]:
+    """
+    PDF dạng ảnh: chưa có chữ nên chia theo trang (bookmark nếu có, không thì mỗi phần
+    OCR_PAGES_PER_SECTION trang). Chữ được điền sau khi OCR các phần người dùng chọn.
+    """
+    if bookmarks:
+        # Chọn cấp mục lục nông nhất không có phần nào > 25% số trang
+        units = ["x" * 1000] * page_count  # mỗi trang coi như dài bằng nhau
+        markers = _choose_level(bookmarks, units)
+    else:
+        markers = []
+    if len(markers) <= 1:
+        total = -(-page_count // OCR_PAGES_PER_SECTION)
+        markers = [(i * OCR_PAGES_PER_SECTION, f"Phần {i + 1}/{total}") for i in range(total)]
+    spans = _split_by_markers(["x"] * page_count, markers)
+    return [{
+        "id": i,
+        "title": s["title"] if bookmarks and len(markers) > 1 else f"{s['title']} (trang {s['start'] + 1}–{s['end']})",
+        "pages": f"{s['start'] + 1}–{s['end']}",
+        "page_start": s["start"],
+        "page_end": s["end"],
+        "needs_ocr": True,
+        "char_count": None,
+        "estimated_seconds": None,
+        "text": None,
+    } for i, s in enumerate(spans)]
+
+
+def finalize_ocr_text(page_texts: List[str]) -> str:
+    """Làm sạch chữ OCR của các trang trong một phần (bỏ header/footer/số trang lặp, nối dòng)."""
+    pages = remove_repetitive_headers_and_footers([clean_page_text(t) for t in page_texts])
+    return normalize_full_text("\n\n".join(p for p in pages if p.strip()))
 
 
 def _docx_blocks(docx_path: Path):
@@ -478,7 +509,15 @@ def extract_document_sections(doc_path: Path) -> Dict[str, Any]:
 
     suffix = doc_path.suffix.lower()
     if suffix == ".pdf":
-        units, bookmarks = _pdf_pages_and_bookmarks(doc_path)
+        units, bookmarks, is_image = _pdf_pages_and_bookmarks(doc_path)
+        if is_image:
+            return {
+                "total_pages": len(units),
+                "total_characters": None,
+                "structure": "ocr",
+                "needs_ocr": True,
+                "sections": _image_pdf_sections(len(units), bookmarks),
+            }
         items, unit_label, structure = bookmarks, "trang", "bookmark"
     elif suffix == ".docx":
         blocks = _docx_blocks(doc_path)
@@ -507,6 +546,7 @@ def extract_document_sections(doc_path: Path) -> Dict[str, Any]:
         "total_pages": len(units) if unit_label == "trang" else None,
         "total_characters": sum(s["char_count"] for s in sections),
         "structure": structure,
+        "needs_ocr": False,
         "sections": sections,
     }
 
@@ -524,4 +564,9 @@ def chunks_for_text(text: str) -> Dict[str, Any]:
 def extract_and_chunk_document(doc_path: Path) -> Dict[str, Any]:
     """Toàn bộ tài liệu (mọi phần) thành chunks; dùng khi không chọn phần."""
     doc = extract_document_sections(doc_path)
+    if doc["needs_ocr"]:
+        raise ValueError(
+            f"PDF này có {doc['total_pages']} trang nhưng không có lớp chữ (PDF dạng ảnh). "
+            "Hãy dùng bước Xem mục lục để chọn phần và nhận dạng chữ (OCR) trước khi đọc."
+        )
     return chunks_for_text("\n\n".join(s["text"] for s in doc["sections"]))

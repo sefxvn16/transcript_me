@@ -22,3 +22,7 @@ services:
         sync: false
       - key: AZURE_SPEECH_REGION
         value: southeastasia
+      - key: AZURE_DOCINTEL_ENDPOINT
+        sync: false
+      - key: AZURE_DOCINTEL_KEY
+        sync: false

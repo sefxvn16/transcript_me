@@ -4,6 +4,7 @@ const TTS_API = ["localhost", "127.0.0.1"].includes(location.hostname)
   ? "http://127.0.0.1:8000"
   : "https://transcript-tts.onrender.com";
 const MONTHLY_FREE_CHARS = 500000; // Azure Speech Free F0
+const MONTHLY_FREE_OCR_PAGES = 500; // Azure Document Intelligence Free F0
 
 const $ = (id) => document.getElementById(id);
 
@@ -129,11 +130,30 @@ function sourceForm() {
 }
 
 // ---------- Mục lục: chọn phần muốn nghe ----------
+// Phần là ảnh scan chưa nhận dạng chữ (OCR)
+const needsOcr = (s) => s.needs_ocr && s.char_count == null;
+const pageCount = (s) => s.page_end - s.page_start;
+
+function sectionMeta(s) {
+  if (needsOcr(s)) return `Trang ${s.pages} · ảnh scan, cần nhận dạng chữ ${pageCount(s)} trang`;
+  return `${s.pages ? `Trang ${s.pages} · ` : ""}~${formatMinutes(s.estimated_seconds)} · ${formatChars(s.char_count)} ký tự`;
+}
+
 function renderSections() {
   $("tts-doc-title").textContent = doc.title;
-  const how = { bookmark: "theo mục lục của file", heading: "theo các tiêu đề trong file", size: "theo độ dài (file không có mục lục)" }[doc.structure];
+  const how = {
+    bookmark: "theo mục lục của file", heading: "theo các tiêu đề trong file",
+    size: "theo độ dài (file không có mục lục)", ocr: "theo trang",
+  }[doc.structure];
   const pages = doc.total_pages ? `${doc.total_pages} trang · ` : "";
-  $("tts-doc-note").textContent = `${pages}${doc.sections.length} phần, chia ${how}. Chọn phần muốn nghe; chỉ phần được chọn mới tốn hạn mức đọc.`;
+  let note = `${pages}${doc.sections.length} phần, chia ${how}. Chọn phần muốn nghe; chỉ phần được chọn mới tốn hạn mức đọc.`;
+  if (doc.needs_ocr) {
+    note = `${pages}${doc.sections.length} phần, chia ${how}. Đây là PDF dạng ảnh: phần bạn chọn sẽ được nhận dạng chữ (OCR) trước khi đọc, `
+      + `khoảng 6–7 giây mỗi trang, tốn hạn mức ${MONTHLY_FREE_OCR_PAGES} trang OCR miễn phí mỗi tháng.`;
+    if (!doc.ocr_available) note += " Máy chủ chưa bật nhận dạng chữ nên chưa đọc được file này.";
+  }
+  $("tts-doc-note").textContent = note;
+  const checked = new Set(selectedIds());
   const list = $("tts-section-list");
   list.replaceChildren();
   doc.sections.forEach((s) => {
@@ -142,14 +162,14 @@ function renderSections() {
     const box = document.createElement("input");
     box.type = "checkbox";
     box.value = String(s.id);
-    box.checked = false; // người dùng tự chọn phần muốn nghe
+    box.checked = checked.has(s.id); // mặc định chưa chọn; giữ lựa chọn khi vẽ lại sau OCR
     box.addEventListener("change", updateSelection);
     const text = document.createElement("span");
     const title = document.createElement("strong");
     title.textContent = s.title; // văn bản từ tài liệu: textContent, không innerHTML
     const meta = document.createElement("span");
     meta.className = "hint";
-    meta.textContent = `${s.pages ? `Trang ${s.pages} · ` : ""}~${formatMinutes(s.estimated_seconds)} · ${formatChars(s.char_count)} ký tự`;
+    meta.textContent = sectionMeta(s);
     text.append(title, meta);
     label.append(box, text);
     li.append(label);
@@ -162,13 +182,16 @@ function renderSections() {
 function updateSelection() {
   const ids = new Set(selectedIds());
   const chosen = doc.sections.filter((s) => ids.has(s.id));
-  const chars = chosen.reduce((n, s) => n + s.char_count, 0);
-  const secs = chosen.reduce((n, s) => n + s.estimated_seconds, 0);
+  const ready = chosen.filter((s) => !needsOcr(s));
+  const ocrPages = chosen.filter(needsOcr).reduce((n, s) => n + pageCount(s), 0);
+  const chars = ready.reduce((n, s) => n + s.char_count, 0);
+  const secs = ready.reduce((n, s) => n + s.estimated_seconds, 0);
   const share = Math.round((chars / MONTHLY_FREE_CHARS) * 100);
-  $("tts-selection").textContent = chosen.length
-    ? `Đã chọn ${chosen.length} phần · ~${formatMinutes(secs)} · ${formatChars(chars)} ký tự (khoảng ${share}% hạn mức miễn phí mỗi tháng)`
-    : "Chưa chọn phần nào.";
-  $("tts-selection").dataset.state = share > 100 ? "warn" : "";
+  const parts = [];
+  if (ready.length) parts.push(`~${formatMinutes(secs)} · ${formatChars(chars)} ký tự (khoảng ${share}% hạn mức đọc miễn phí mỗi tháng)`);
+  if (ocrPages) parts.push(`cần nhận dạng chữ ${ocrPages} trang (${Math.round((ocrPages / MONTHLY_FREE_OCR_PAGES) * 100)}% hạn mức OCR tháng)`);
+  $("tts-selection").textContent = chosen.length ? `Đã chọn ${chosen.length} phần · ${parts.join(" · ")}` : "Chưa chọn phần nào.";
+  $("tts-selection").dataset.state = share > 100 || ocrPages > MONTHLY_FREE_OCR_PAGES ? "warn" : "";
   setBadge(`${chosen.length}/${doc.sections.length} phần`, chosen.length ? "complete" : "");
 }
 
@@ -195,6 +218,26 @@ async function analyze() {
   renderSections();
   updateRunLabel();
   setStatus(`Đã chia thành ${doc.sections.length} phần. Chọn phần muốn nghe rồi bấm ${outputMode() === "mp3" ? "Tạo file MP3" : "Bắt đầu đọc"}.`, "idle");
+}
+
+// Nhận dạng chữ cho các phần ảnh scan đã chọn, rồi cập nhật số ký tự/thời lượng của từng phần
+async function runOcr(ids) {
+  const form = new FormData();
+  form.append("section_ids", ids.join(","));
+  const { task_id, pages } = await api(`/api/document/${doc.doc_id}/ocr`, { method: "POST", body: form });
+  setStatus(`Đang nhận dạng chữ ${pages} trang...`);
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 2000));
+    job.signal.throwIfAborted();
+    const t = await api(`/api/process/offline/status/${task_id}`);
+    if (t.status === "FAILED") throw new Error(t.error || "Nhận dạng chữ thất bại.");
+    setStatus(`${t.current_step} (${t.progress}%)`);
+    if (t.status === "COMPLETED") {
+      for (const r of t.output_files) Object.assign(doc.sections.find((s) => s.id === r.id), r);
+      renderSections();
+      return;
+    }
+  }
 }
 
 function selectionForm() {
@@ -396,8 +439,13 @@ async function run() {
   try {
     await wakeServer();
     if (!doc) await analyze();
-    else if (outputMode() === "mp3") await startMp3(form);
-    else await startStream(form);
+    else {
+      const ids = selectedIds();
+      const pending = doc.sections.filter((s) => ids.includes(s.id) && needsOcr(s)).map((s) => s.id);
+      if (pending.length) await runOcr(pending);
+      if (outputMode() === "mp3") await startMp3(form);
+      else await startStream(form);
+    }
   } catch (e) {
     setStatus(current.signal.aborted ? "Đã dừng." : `Lỗi: ${e.message}`, "idle");
   } finally {

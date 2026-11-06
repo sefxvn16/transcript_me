@@ -21,7 +21,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.downloader import acquire_document_file
-from app.extractor import extract_and_chunk_document, extract_document_sections, chunks_for_text
+from app.extractor import extract_and_chunk_document, extract_document_sections, chunks_for_text, finalize_ocr_text
+from app import ocr
 from app.tts import synthesize_speech, get_available_voices, is_configured, SUPPORTED_RATES
 from app.utils import (
     task_manager,
@@ -85,7 +86,7 @@ async def serve_home():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "tts_configured": is_configured()}
+    return {"status": "ok", "tts_configured": is_configured(), "ocr_configured": ocr.is_configured()}
 
 
 @app.get("/api/voices")
@@ -138,7 +139,7 @@ def _root_error(e: BaseException) -> BaseException:
 # PHÂN TÍCH TÀI LIỆU: CHIA THEO CHƯƠNG/MỤC ĐỂ NGƯỜI DÙNG CHỌN PHẦN MUỐN NGHE
 # --------------------------------------------------------------------------
 
-# doc_id -> {"title", "created_at", "sections": [{"id", "title", "text", ...}]}
+# doc_id -> {"title", "created_at", "sections": [...], "path": file PDF (chỉ giữ khi cần OCR), "ocr_pages": {trang: chữ}}
 _documents: Dict[str, dict] = {}
 
 
@@ -160,8 +161,9 @@ async def analyze_document(
     try:
         doc = await asyncio.to_thread(extract_document_sections, doc_path)
     except ValueError as e:
+        doc_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
+    if not doc["needs_ocr"]:
         doc_path.unlink(missing_ok=True)  # đã lấy xong chữ, không cần giữ file gốc
 
     cutoff = time.time() - MAX_AGE_SECONDS
@@ -169,23 +171,34 @@ async def analyze_document(
         del _documents[key]
     doc_id = uuid.uuid4().hex[:12]
     title = _display_title(doc_path.stem)
-    _documents[doc_id] = {"title": title, "created_at": time.time(), "sections": doc["sections"]}
+    _documents[doc_id] = {
+        "title": title,
+        "created_at": time.time(),
+        "sections": doc["sections"],
+        "path": doc_path if doc["needs_ocr"] else None,
+        "ocr_pages": {},
+    }
 
     return {
         "doc_id": doc_id,
         "title": title,
         "structure": doc["structure"],
+        "needs_ocr": doc["needs_ocr"],
+        "ocr_available": ocr.is_configured(),
         "total_pages": doc["total_pages"],
         "total_characters": doc["total_characters"],
         "sections": [{k: v for k, v in sec.items() if k != "text"} for sec in doc["sections"]],
     }
 
 
-def _selected_text(doc_id: str, section_ids: Optional[str]) -> Tuple[str, str]:
-    """Trả về (tiêu đề, văn bản) của các phần đã chọn; section_ids dạng "0,3,4", rỗng = cả tài liệu."""
+def _get_document(doc_id: str) -> dict:
     doc = _documents.get(doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Tài liệu đã hết hạn (quá 6 giờ hoặc máy chủ khởi động lại). Hãy tải lên lại.")
+    return doc
+
+
+def _pick_sections(doc: dict, section_ids: Optional[str]) -> List[dict]:
     sections = doc["sections"]
     if section_ids and section_ids.strip():
         try:
@@ -195,13 +208,73 @@ def _selected_text(doc_id: str, section_ids: Optional[str]) -> Tuple[str, str]:
         sections = [sec for sec in sections if sec["id"] in wanted]
         if not sections:
             raise HTTPException(status_code=400, detail="Chưa chọn phần nào để đọc.")
+    return sections
+
+
+def _selected_text(doc_id: str, section_ids: Optional[str]) -> Tuple[str, str]:
+    """Trả về (tiêu đề, văn bản) của các phần đã chọn; section_ids dạng "0,3,4", rỗng = cả tài liệu."""
+    doc = _get_document(doc_id)
+    sections = _pick_sections(doc, section_ids)
+    if any(sec["text"] is None for sec in sections):
+        raise HTTPException(status_code=409, detail="Phần đã chọn là ảnh scan, cần nhận dạng chữ (OCR) trước khi đọc.")
+    if not any(sec["text"] for sec in sections):
+        raise HTTPException(status_code=400, detail="Không nhận dạng được chữ nào trong phần đã chọn.")
     if len(sections) == 1:
         title = f"{doc['title']} - {sections[0]['title']}"
     elif len(sections) < len(doc["sections"]):
         title = f"{doc['title']} - {len(sections)} phần"
     else:
         title = doc["title"]
-    return title, "\n\n".join(sec["text"] for sec in sections)
+    return title, "\n\n".join(sec["text"] for sec in sections if sec["text"])
+
+
+async def _run_ocr(task_id: str, doc_id: str, section_ids: List[int]) -> None:
+    """OCR các trang của những phần đã chọn (bỏ qua trang đã OCR), rồi điền chữ cho từng phần."""
+    try:
+        doc = _get_document(doc_id)
+        sections = [sec for sec in doc["sections"] if sec["id"] in set(section_ids) and sec["text"] is None]
+        pages = [i for sec in sections for i in range(sec["page_start"], sec["page_end"]) if i not in doc["ocr_pages"]]
+        await task_manager.update_task(task_id, status="PROCESSING", total_chunks=len(pages), progress=5,
+                                       current_step=f"Đang nhận dạng chữ {len(pages)} trang...")
+
+        async def on_page_done(done: int, total: int) -> None:
+            await task_manager.update_task(task_id, processed_chunks=done, progress=5 + int(done / total * 90),
+                                           current_step=f"Đang nhận dạng chữ trang {done}/{total}...")
+
+        doc["ocr_pages"].update(await ocr.ocr_pdf_pages(doc["path"], pages, on_page_done))
+        for sec in sections:
+            text = finalize_ocr_text([doc["ocr_pages"].get(i, "") for i in range(sec["page_start"], sec["page_end"])])
+            sec["text"] = text
+            sec["char_count"] = len(text)
+            sec["estimated_seconds"] = sum(c["estimated_seconds"] for c in chunks_for_text(text)["chunks"]) if text else 0
+        await task_manager.update_task(
+            task_id, status="COMPLETED", progress=100, current_step="Đã nhận dạng chữ xong.",
+            output_files=[{"id": sec["id"], "char_count": sec["char_count"], "estimated_seconds": sec["estimated_seconds"]}
+                          for sec in sections],
+        )
+    except Exception as e:
+        err = _root_error(e)
+        logger.error(f"[OCR {task_id}] Lỗi: {err}", exc_info=True)
+        await task_manager.update_task(task_id, status="FAILED", error=str(err), current_step=f"Lỗi: {err}")
+
+
+@app.post("/api/document/{doc_id}/ocr")
+async def start_ocr(doc_id: str, background_tasks: BackgroundTasks, section_ids: str = Form(...)):
+    """
+    Nhận dạng chữ cho các phần ảnh scan đã chọn (tốn hạn mức 500 trang/tháng của Document Intelligence F0).
+    Tiến độ xem qua /api/process/offline/status/{task_id}; xong thì gọi init/offline như bình thường.
+    """
+    if not ocr.is_configured():
+        raise HTTPException(status_code=503, detail="Máy chủ chưa cấu hình nhận dạng chữ (Azure Document Intelligence).")
+    doc = _get_document(doc_id)
+    if not doc["path"] or not doc["path"].exists():
+        raise HTTPException(status_code=404, detail="File gốc đã bị xóa (quá 6 giờ). Hãy tải lên lại.")
+    sections = _pick_sections(doc, section_ids)
+    task_id = uuid.uuid4().hex[:12]
+    await task_manager.create_task(task_id, title=doc["title"], max_age_seconds=MAX_AGE_SECONDS)
+    background_tasks.add_task(_run_ocr, task_id, doc_id, [sec["id"] for sec in sections])
+    pages = sum(sec["page_end"] - sec["page_start"] for sec in sections if sec["text"] is None)
+    return {"task_id": task_id, "pages": pages}
 
 
 async def _resolve_source(doc_id, section_ids, file, url) -> Tuple[str, Optional[str], Optional[Path]]:
