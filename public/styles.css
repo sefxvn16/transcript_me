@@ -131,6 +131,20 @@ input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; op
 .file-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
 .file-list a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--accent-dark); font-weight: 600; overflow-wrap: anywhere; }
 .file-list .hint { margin: 0; }
+/* Text to Speech: danh sách phần (chương/mục) để chọn */
+.section-tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 8px; }
+.section-tools button, .back-link { border: 1px solid var(--line); background: white; color: var(--ink); border-radius: 8px; padding: 7px 12px; }
+.section-tools button:hover, .back-link:hover { background: var(--soft); border-color: #a6c6b8; }
+.back-link { margin-bottom: 12px; }
+.section-list { list-style: none; margin: 0; padding: 0; max-height: 460px; overflow-y: auto; border-top: 1px solid var(--line); }
+.section-list li { border-bottom: 1px solid var(--line); }
+.section-list label { display: flex; gap: 12px; align-items: flex-start; margin: 0; padding: 12px 4px; font-weight: 400; cursor: pointer; }
+.section-list label:has(input:checked) { background: #f8fbf9; }
+.section-list input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--accent); flex-shrink: 0; }
+.section-list strong { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.section-list .hint { margin: 2px 0 0; font-size: .875rem; }
+.selection-summary { margin: 12px 0 0; font-weight: 600; color: var(--accent-dark); }
+.selection-summary[data-state="warn"] { color: #a1392e; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 1000px) {
   .intro-art { right: 20px; transform: rotate(-5deg) scale(.8); transform-origin: right center; }
@@ -144,6 +158,7 @@ input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; op
   .mode-switch a { flex: 1; padding: 8px; }
   .field-row { grid-template-columns: 1fr; }
   .reading-text { max-height: none; }
+  .section-list { max-height: none; }
   .intro { padding: 32px 0 28px; }
   h1 { font-size: 44px; }
   .intro-art { display: none; }

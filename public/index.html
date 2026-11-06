@@ -120,7 +120,7 @@
             <label for="tts-merge">File MP3</label>
             <select id="tts-merge"><option value="single_file">Gộp thành 1 file</option><option value="split_files">Chia từng phần khoảng 15–20 phút</option></select>
           </div>
-          <div class="run-actions"><button id="tts-run" class="primary" type="button">Bắt đầu đọc<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button id="tts-cancel" class="stop hidden" type="button">Dừng</button></div>
+          <div class="run-actions"><button id="tts-run" class="primary" type="button">Xem mục lục<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button><button id="tts-cancel" class="stop hidden" type="button">Dừng</button></div>
           <p id="tts-status" class="status" role="status" aria-live="polite" aria-atomic="true"></p>
           <p class="source-footer"><svg class="icon" aria-hidden="true"><use href="#i-speaker"/></svg> Giọng Microsoft Azure. Không dịch, đọc đúng nội dung gốc.</p>
         </section>
@@ -129,10 +129,19 @@
           <div id="tts-empty" class="empty-result">
             <div class="paper-art" aria-hidden="true"><span class="paper-symbol"><svg class="icon"><use href="#i-text"/></svg></span><i></i><i></i><i></i><i></i><span class="paper-wave"><svg class="icon"><use href="#i-speaker"/></svg></span></div>
             <h3>Tài liệu của bạn, ở dạng giọng nói.</h3>
-            <p>Thêm file hoặc link rồi chọn <strong>Bắt đầu đọc.</strong><br>Trình phát hoặc file MP3 sẽ xuất hiện ở đây.</p>
+            <p>Thêm file hoặc link rồi chọn <strong>Xem mục lục.</strong><br>Tài liệu được chia theo chương để bạn chọn phần muốn nghe.</p>
             <div class="empty-formats"><span>PDF</span><span>Word</span><span>MP3</span></div>
           </div>
+          <div id="tts-sections" class="hidden">
+            <p id="tts-doc-title" class="book-title"></p>
+            <p id="tts-doc-note" class="hint"></p>
+            <div class="section-tools"><button id="tts-select-all" type="button">Chọn tất cả</button><button id="tts-select-none" type="button">Bỏ chọn</button></div>
+            <ol id="tts-section-list" class="section-list"></ol>
+            <p id="tts-selection" class="selection-summary" aria-live="polite"></p>
+            <div class="run-actions"><button id="tts-run-selected" class="primary" type="button">Bắt đầu đọc<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div>
+          </div>
           <div id="tts-player" class="hidden">
+            <button class="back-link" type="button" data-back>← Chọn phần khác</button>
             <p id="tts-book" class="book-title"></p>
             <div class="player-bar">
               <div id="tts-progress" class="progress" role="slider" tabindex="0" aria-label="Vị trí trong đoạn" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="tts-progress-fill"></i></div>
@@ -149,6 +158,7 @@
             <details class="chunk-list"><summary>Danh sách đoạn</summary><ol id="tts-chunks"></ol></details>
           </div>
           <div id="tts-files" class="hidden">
+            <button class="back-link" type="button" data-back>← Chọn phần khác</button>
             <p id="tts-files-note" class="hint"></p>
             <ul id="tts-file-list" class="file-list"></ul>
           </div>

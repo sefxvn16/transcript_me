@@ -7,6 +7,7 @@ Chạy local (python run.py) hoặc làm backend public trên Render cho transcr
 """
 
 import re
+import time
 import uuid
 import asyncio
 import logging
@@ -20,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.downloader import acquire_document_file
-from app.extractor import extract_and_chunk_document
+from app.extractor import extract_and_chunk_document, extract_document_sections, chunks_for_text
 from app.tts import synthesize_speech, get_available_voices, is_configured, SUPPORTED_RATES
 from app.utils import (
     task_manager,
@@ -134,12 +135,96 @@ def _root_error(e: BaseException) -> BaseException:
 
 
 # --------------------------------------------------------------------------
+# PHÂN TÍCH TÀI LIỆU: CHIA THEO CHƯƠNG/MỤC ĐỂ NGƯỜI DÙNG CHỌN PHẦN MUỐN NGHE
+# --------------------------------------------------------------------------
+
+# doc_id -> {"title", "created_at", "sections": [{"id", "title", "text", ...}]}
+_documents: Dict[str, dict] = {}
+
+
+def _display_title(stem: str) -> str:
+    return re.sub(r"^[0-9a-f]{8}_", "", stem)
+
+
+@app.post("/api/document")
+async def analyze_document(
+    file: Optional[UploadFile] = File(None),
+    url: Optional[str] = Form(None)
+):
+    """
+    Nhận PDF/DOCX, chia thành các phần (theo mục lục/heading, hoặc theo dung lượng)
+    và trả về danh sách phần để người dùng chọn. Chưa gọi Azure Speech, chưa tốn quota.
+    """
+    await asyncio.to_thread(_cleanup_storage)
+    doc_path = await acquire_document_file(file, url, UPLOAD_DIR)
+    try:
+        doc = await asyncio.to_thread(extract_document_sections, doc_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        doc_path.unlink(missing_ok=True)  # đã lấy xong chữ, không cần giữ file gốc
+
+    cutoff = time.time() - MAX_AGE_SECONDS
+    for key in [k for k, v in _documents.items() if v["created_at"] < cutoff]:
+        del _documents[key]
+    doc_id = uuid.uuid4().hex[:12]
+    title = _display_title(doc_path.stem)
+    _documents[doc_id] = {"title": title, "created_at": time.time(), "sections": doc["sections"]}
+
+    return {
+        "doc_id": doc_id,
+        "title": title,
+        "structure": doc["structure"],
+        "total_pages": doc["total_pages"],
+        "total_characters": doc["total_characters"],
+        "sections": [{k: v for k, v in sec.items() if k != "text"} for sec in doc["sections"]],
+    }
+
+
+def _selected_text(doc_id: str, section_ids: Optional[str]) -> Tuple[str, str]:
+    """Trả về (tiêu đề, văn bản) của các phần đã chọn; section_ids dạng "0,3,4", rỗng = cả tài liệu."""
+    doc = _documents.get(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Tài liệu đã hết hạn (quá 6 giờ hoặc máy chủ khởi động lại). Hãy tải lên lại.")
+    sections = doc["sections"]
+    if section_ids and section_ids.strip():
+        try:
+            wanted = {int(x) for x in section_ids.split(",") if x.strip()}
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Danh sách phần không hợp lệ.")
+        sections = [sec for sec in sections if sec["id"] in wanted]
+        if not sections:
+            raise HTTPException(status_code=400, detail="Chưa chọn phần nào để đọc.")
+    if len(sections) == 1:
+        title = f"{doc['title']} - {sections[0]['title']}"
+    elif len(sections) < len(doc["sections"]):
+        title = f"{doc['title']} - {len(sections)} phần"
+    else:
+        title = doc["title"]
+    return title, "\n\n".join(sec["text"] for sec in sections)
+
+
+async def _resolve_source(doc_id, section_ids, file, url) -> Tuple[str, Optional[str], Optional[Path]]:
+    """(tiêu đề, văn bản đã chọn | None, file tài liệu | None): ưu tiên doc_id, nếu không thì nhận file/link như cũ."""
+    if doc_id:
+        title, text = _selected_text(doc_id, section_ids)
+        return title, text, None
+    doc_path = await acquire_document_file(file, url, UPLOAD_DIR)
+    return _display_title(doc_path.stem), None, doc_path
+
+
+def _safe_filename(title: str) -> str:
+    return re.sub(r'[\\/*?:"<>|]', "", title).strip().replace(" ", "_")[:120] or "audiobook"
+
+
+# --------------------------------------------------------------------------
 # CHẾ ĐỘ 1: XUẤT AUDIO OFFLINE (TẢI VỀ MÁY)
 # --------------------------------------------------------------------------
 
 async def _process_offline_task(
     task_id: str,
-    file_path: Path,
+    file_path: Optional[Path],
+    text: Optional[str],
     voice: str,
     rate: str,
     merge_option: str,
@@ -158,7 +243,10 @@ async def _process_offline_task(
             current_step="Đang đọc tài liệu và làm sạch văn bản..."
         )
 
-        extracted = await asyncio.to_thread(extract_and_chunk_document, file_path)
+        if text is not None:
+            extracted = await asyncio.to_thread(chunks_for_text, text)
+        else:
+            extracted = await asyncio.to_thread(extract_and_chunk_document, file_path)
         chunks = extracted["chunks"]
         total_chunks = len(chunks)
 
@@ -200,7 +288,7 @@ async def _process_offline_task(
             current_step="Đang gom các file âm thanh..."
         )
 
-        clean_base_title = original_title.replace(" ", "_")
+        clean_base_title = _safe_filename(original_title)
 
         if merge_option == "single_file" or total_chunks <= 1:
             single_output = task_audio_dir / f"{clean_base_title}_Full.mp3"
@@ -264,18 +352,20 @@ async def start_offline_conversion(
     url: Optional[str] = Form(None),
     voice: str = Form("vi-VN-HoaiMyNeural"),
     rate: str = Form("+0%"),
-    merge_option: str = Form("single_file")
+    merge_option: str = Form("single_file"),
+    doc_id: Optional[str] = Form(None),
+    section_ids: Optional[str] = Form(None)
 ):
     """
     API bắt đầu xuất Audio Offline.
-    Hỗ trợ upload PDF/DOCX hoặc link Google Drive / OneDrive / trực tiếp.
+    Nguồn: doc_id + section_ids (các phần đã chọn sau /api/document),
+    hoặc upload PDF/DOCX / link Google Drive / OneDrive / trực tiếp (cả tài liệu).
     """
     _require_tts()
     await asyncio.to_thread(_cleanup_storage)
-    doc_path = await acquire_document_file(file, url, UPLOAD_DIR)
+    original_title, text, doc_path = await _resolve_source(doc_id, section_ids, file, url)
 
     task_id = uuid.uuid4().hex[:12]
-    original_title = doc_path.stem
 
     await task_manager.create_task(task_id, title=original_title, max_age_seconds=MAX_AGE_SECONDS)
 
@@ -283,6 +373,7 @@ async def start_offline_conversion(
         _process_offline_task,
         task_id=task_id,
         file_path=doc_path,
+        text=text,
         voice=voice,
         rate=rate,
         merge_option=merge_option,
@@ -377,29 +468,33 @@ async def init_player_session(
     file: Optional[UploadFile] = File(None),
     url: Optional[str] = Form(None),
     voice: str = Form("vi-VN-HoaiMyNeural"),
-    rate: str = Form("+0%")
+    rate: str = Form("+0%"),
+    doc_id: Optional[str] = Form(None),
+    section_ids: Optional[str] = Form(None)
 ):
     """
     Khởi tạo phiên đọc trực tuyến cho Chế độ 2:
-    - Tiếp nhận tài liệu PDF/DOCX, trích xuất và chia đoạn
+    - Nguồn: các phần đã chọn (doc_id + section_ids) hoặc file/link (cả tài liệu)
     - Lập tức tiền xử lý Đoạn 1 và Đoạn 2 trong nền
     - Trả về danh sách tóm tắt tất cả các đoạn để hiển thị lên Player
     """
     _require_tts()
     await asyncio.to_thread(_cleanup_storage)
-    doc_path = await acquire_document_file(file, url, UPLOAD_DIR)
+    title, text, doc_path = await _resolve_source(doc_id, section_ids, file, url)
 
     try:
-        extracted = await asyncio.to_thread(extract_and_chunk_document, doc_path)
+        if text is not None:
+            extracted = await asyncio.to_thread(chunks_for_text, text)
+        else:
+            extracted = await asyncio.to_thread(extract_and_chunk_document, doc_path)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Lỗi khi đọc tài liệu: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
     chunks = extracted["chunks"]
     if not chunks:
         raise HTTPException(status_code=400, detail="Tài liệu không có nội dung văn bản.")
 
     session_id = uuid.uuid4().hex[:12]
-    title = doc_path.stem
 
     session = await stream_manager.create_session(
         session_id=session_id,

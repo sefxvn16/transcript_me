@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from collections import Counter
 
 import docx
-import pdfplumber
+import pypdfium2 as pdfium
 from docx.oxml.ns import qn
 from docx.table import Table
 from docx.text.paragraph import Paragraph
@@ -55,6 +55,10 @@ def _join_hyphen_break(m: re.Match) -> str:
     return left + right
 
 
+def _digits_masked(line: str) -> str:
+    return re.sub(r"\d+", "#", line.strip())
+
+
 def remove_repetitive_headers_and_footers(pages_text: List[str]) -> List[str]:
     """
     Phát hiện và loại bỏ header, footer và số trang lặp lại trên nhiều trang.
@@ -72,6 +76,9 @@ def remove_repetitive_headers_and_footers(pages_text: List[str]) -> List[str]:
             last_lines.append(lines[-1])
 
     threshold = max(2, int(len(pages_text) * 0.35))
+    # So khớp sau khi thay số bằng "#": header kiểu "ha.ngohuu Page 6", "Page 7" vẫn được coi là lặp
+    first_lines = [_digits_masked(l) for l in first_lines]
+    last_lines = [_digits_masked(l) for l in last_lines]
     common_headers = {line for line, count in Counter(first_lines).items() if count >= threshold}
     common_footers = {line for line, count in Counter(last_lines).items() if count >= threshold}
 
@@ -85,19 +92,23 @@ def remove_repetitive_headers_and_footers(pages_text: List[str]) -> List[str]:
         lines = text.split("\n")
         filtered_lines = []
         total_lines = len(lines)
+        non_empty = [i for i, l in enumerate(lines) if l.strip()]
+        first_idx = non_empty[0] if non_empty else -1
+        last_idx = non_empty[-1] if non_empty else -1
 
         for idx, line in enumerate(lines):
             stripped = line.strip()
             if not stripped:
                 filtered_lines.append("")
                 continue
+            masked = _digits_masked(stripped)
 
-            # Kiểm tra dòng đầu (header)
-            if idx == 0 and (stripped in common_headers or page_number_pattern.match(stripped)):
+            # Dòng chữ đầu tiên của trang (header)
+            if idx == first_idx and (masked in common_headers or page_number_pattern.match(stripped)):
                 continue
 
-            # Kiểm tra dòng cuối (footer)
-            if idx == total_lines - 1 and (stripped in common_footers or page_number_pattern.match(stripped)):
+            # Dòng chữ cuối cùng của trang (footer)
+            if idx == last_idx and (masked in common_footers or page_number_pattern.match(stripped)):
                 continue
 
             # Kiểm tra dòng chỉ có số trang đơn thuần ở bất kỳ vị trí biên
@@ -273,67 +284,244 @@ def create_chunks_from_text(
     return chunks
 
 
-def _extract_pdf_text(pdf_path: Path) -> str:
-    """PDF: duyệt từng trang, làm sạch header/footer, số trang, gạch nối ngắt dòng."""
-    with pdfplumber.open(str(pdf_path)) as pdf:
-        raw_pages = [clean_page_text(page.extract_text(layout=False) or "") for page in pdf.pages]
-    pages_without_headers = remove_repetitive_headers_and_footers(raw_pages)
-    return "\n\n".join(p for p in pages_without_headers if p.strip())
+# Ở một cấp mục lục, nếu có phần chiếm hơn tỉ lệ này của cả tài liệu (và đủ dài) thì xuống cấp sâu hơn.
+# Ví dụ: "Phần 2" chiếm 44% sách -> chia theo "Chương"; chương dài 35/447 trang vẫn giữ nguyên.
+MAX_SECTION_SHARE = 0.25
+MIN_SPLIT_CHARS = 20000
+# Phần quá ngắn (trang bìa "PHẦN MỘT", trang trống) được gộp vào phần ngay sau
+MIN_SECTION_CHARS = 300
+# Khi tài liệu không có mục lục/heading: chia theo dung lượng, ~20 phút đọc mỗi phần
+FALLBACK_SECTION_CHARS = 18000
+
+IMAGE_PDF_MESSAGE = (
+    "PDF này có {n} trang nhưng không có lớp chữ: đây là PDF dạng ảnh (scan, chụp hoặc "
+    "'Print to PDF' từ ảnh). App chưa đọc được loại file này; hãy dùng bản PDF/Word có chữ chọn được."
+)
 
 
-def _extract_docx_text(docx_path: Path) -> str:
-    """DOCX: lấy đoạn văn và bảng theo đúng thứ tự trong tài liệu, mỗi khối cách nhau một dòng trống."""
+def _pdf_pages_and_bookmarks(pdf_path: Path):
+    """
+    PDF: lấy chữ từng trang bằng pdfium (nhanh, ít RAM: sách 259 trang < 1s) và mục lục (bookmark).
+    Trả về (danh sách chữ từng trang đã làm sạch, [(cấp, chỉ số trang, tiêu đề)]).
+    """
+    raw_pages: List[str] = []
+    bookmarks = []
+    doc = pdfium.PdfDocument(str(pdf_path))
+    try:
+        for i in range(len(doc)):
+            page = doc[i]
+            textpage = page.get_textpage()
+            raw_pages.append(clean_page_text(textpage.get_text_range()))
+            textpage.close()
+            page.close()
+        for bm in doc.get_toc(max_depth=4):
+            dest = bm.get_dest()
+            index = dest.get_index() if dest else None
+            title = re.sub(r"\s+", " ", bm.get_title() or "").strip()
+            # Bỏ bookmark chú thích kiểu "[12]" hoặc chỉ là số
+            if re.fullmatch(r"\[?\d+\]?\.?", title):
+                continue
+            if index is not None and 0 <= index < len(raw_pages) and title:
+                bookmarks.append((bm.level, index, title))
+    finally:
+        doc.close()
+
+    pages = remove_repetitive_headers_and_footers(raw_pages)
+    # Chỉ có watermark/số trang lặp lại (đã bị loại) cũng tính là không có lớp chữ
+    if raw_pages and not any(p.strip() for p in pages):
+        raise ValueError(IMAGE_PDF_MESSAGE.format(n=len(raw_pages)))
+    return pages, bookmarks
+
+
+def _docx_blocks(docx_path: Path):
+    """
+    DOCX: lấy đoạn văn và bảng theo đúng thứ tự trong tài liệu.
+    Trả về [(văn bản, cấp heading hoặc None)]; Title = cấp 0, Heading N = cấp N.
+    """
     document = docx.Document(str(docx_path))
-    blocks: List[str] = []
+    blocks = []
     for element in document.element.body.iterchildren():
         if element.tag == qn("w:p"):
-            text = Paragraph(element, document).text.strip()
-            if text:
-                blocks.append(text)
+            para = Paragraph(element, document)
+            text = para.text.strip()
+            if not text:
+                continue
+            style = (para.style.name if para.style is not None else "") or ""
+            level = None
+            if style == "Title":
+                level = 0
+            else:
+                m = re.match(r"Heading (\d)", style)
+                if m:
+                    level = int(m.group(1))
+            blocks.append((text, level))
         elif element.tag == qn("w:tbl"):
             for row in Table(element, document).rows:
                 cells = [c.text.strip() for c in row.cells if c.text.strip()]
                 if cells:
                     # Ô gộp lặp lại cùng nội dung: bỏ trùng liền kề
                     unique = [c for i, c in enumerate(cells) if i == 0 or c != cells[i - 1]]
-                    blocks.append(", ".join(unique) + ".")
-    return clean_page_text("\n\n".join(blocks))
+                    blocks.append((", ".join(unique) + ".", None))
+    return blocks
+
+
+def _split_by_markers(units: List[str], markers: List[tuple]) -> List[Dict[str, Any]]:
+    """
+    units: các đơn vị văn bản (trang PDF hoặc khối DOCX). markers: [(chỉ số unit bắt đầu, tiêu đề)].
+    Trả về [{"title", "start", "end"}] phủ toàn bộ units, có phần "Mở đầu" nếu trước marker đầu có chữ.
+    """
+    markers = sorted({start: title for start, title in reversed(markers)}.items())  # 1 tiêu đề/vị trí, giữ cái xuất hiện trước
+    spans = []
+    if not markers or markers[0][0] > 0:
+        first = markers[0][0] if markers else len(units)
+        spans.append({"title": "Mở đầu", "start": 0, "end": first})
+    for i, (start, title) in enumerate(markers):
+        end = markers[i + 1][0] if i + 1 < len(markers) else len(units)
+        spans.append({"title": title, "start": start, "end": end})
+    return [s for s in spans if s["end"] > s["start"]]
+
+
+def _choose_level(items: List[tuple], units: List[str]) -> List[tuple]:
+    """
+    items: [(cấp, chỉ số unit, tiêu đề)]. Chọn cấp nông nhất mà không phần nào chiếm quá
+    MAX_SECTION_SHARE tài liệu; nếu cấp nào cũng còn phần quá lớn thì dùng cấp sâu nhất có.
+    """
+    total = sum(len(u) for u in units) or 1
+    levels = sorted({lvl for lvl, _, _ in items})
+    chosen = []
+    for lvl in levels:
+        chosen = [(idx, title) for l, idx, title in items if l <= lvl]
+        sizes = [sum(len(u) for u in units[s["start"]:s["end"]]) for s in _split_by_markers(units, chosen)]
+        # Cấp chỉ có 1 phần (vd. một Title duy nhất) thì luôn thử cấp sâu hơn
+        if len(sizes) > 1 and not any(size > MIN_SPLIT_CHARS and size / total > MAX_SECTION_SHARE for size in sizes):
+            break
+    return chosen
+
+
+def _fallback_markers(units: List[str], unit_label: Optional[str]) -> List[tuple]:
+    """Không có cấu trúc: cắt theo dung lượng ~FALLBACK_SECTION_CHARS, tại ranh giới unit."""
+    markers, size, start = [], 0, 0
+    for i, u in enumerate(units):
+        if size >= FALLBACK_SECTION_CHARS:
+            markers.append((start, None))
+            start, size = i, 0
+        size += len(u)
+    # Phần cuối quá ngắn thì gộp vào phần trước
+    if markers and size < FALLBACK_SECTION_CHARS / 3:
+        pass
+    else:
+        markers.append((start, None))
+    if not markers:
+        markers.append((0, None))
+    total = len(markers)
+    result = []
+    for k, (s, _) in enumerate(markers):
+        e = markers[k + 1][0] if k + 1 < total else len(units)
+        label = f"Phần {k + 1}/{total}"
+        if unit_label:
+            label += f" ({unit_label} {s + 1}–{e})"
+        result.append((s, label))
+    return result
+
+
+def _finalize_sections(units: List[str], spans: List[Dict[str, Any]], unit_label: Optional[str]) -> List[Dict[str, Any]]:
+    """Ghép chữ từng phần, gộp phần quá ngắn vào phần sau, đánh số id."""
+    sections = []
+    pending = None  # phần quá ngắn chờ gộp vào phần kế tiếp
+    for s in spans:
+        text = normalize_full_text("\n\n".join(u for u in units[s["start"]:s["end"]] if u.strip()))
+        item = {"title": s["title"], "start": s["start"], "end": s["end"], "text": text}
+        if pending:
+            item["title"] = f"{pending['title']} · {item['title']}"
+            item["start"] = pending["start"]
+            item["text"] = f"{pending['text']}\n\n{item['text']}".strip()
+            pending = None
+        if len(item["text"]) < MIN_SECTION_CHARS:
+            pending = item
+            continue
+        sections.append(item)
+    if pending:
+        if sections:
+            sections[-1]["end"] = pending["end"]
+            sections[-1]["text"] = f"{sections[-1]['text']}\n\n{pending['text']}".strip()
+        elif pending["text"]:
+            sections.append(pending)
+
+    result = []
+    for i, s in enumerate(sections):
+        if not s["text"]:
+            continue
+        chunks = create_chunks_from_text(s["text"])
+        result.append({
+            "id": len(result),
+            "title": s["title"],
+            "pages": f"{s['start'] + 1}–{s['end']}" if unit_label == "trang" else None,
+            "char_count": len(s["text"]),
+            "estimated_seconds": sum(c["estimated_seconds"] for c in chunks),
+            "text": s["text"],
+        })
+    return result
 
 
 SUPPORTED_SUFFIXES = {".pdf", ".docx"}
 
 
-def extract_and_chunk_document(
-    doc_path: Path,
-    min_chars: int = 1000,
-    max_chars: int = 1800
-) -> Dict[str, Any]:
+def extract_document_sections(doc_path: Path) -> Dict[str, Any]:
     """
-    Trích xuất văn bản từ PDF hoặc DOCX (theo đuôi file), chuẩn hóa câu
-    và chia thành chunks không quá max_chars ký tự.
+    Trích xuất PDF/DOCX và chia thành các phần để người dùng chọn nghe:
+    - PDF: theo mục lục (bookmark), chọn cấp chương/mục sao cho mỗi phần không quá dài.
+    - DOCX: theo các đoạn có style Title/Heading.
+    - Không có cấu trúc: theo dung lượng ~20 phút đọc mỗi phần.
     """
     if not doc_path.exists():
         raise FileNotFoundError(f"Không tìm thấy file: {doc_path}")
 
     suffix = doc_path.suffix.lower()
     if suffix == ".pdf":
-        raw_text = _extract_pdf_text(doc_path)
+        units, bookmarks = _pdf_pages_and_bookmarks(doc_path)
+        items, unit_label, structure = bookmarks, "trang", "bookmark"
     elif suffix == ".docx":
-        raw_text = _extract_docx_text(doc_path)
+        blocks = _docx_blocks(doc_path)
+        units = [clean_page_text(text) for text, _ in blocks]
+        items = [(lvl, i, text[:120]) for i, (text, lvl) in enumerate(blocks) if lvl is not None]
+        unit_label, structure = None, "heading"
     else:
         raise ValueError(f"Không hỗ trợ định dạng {suffix}. Chỉ nhận PDF hoặc Word (.docx).")
 
-    normalized_text = normalize_full_text(raw_text)
-    if not normalized_text:
+    sections = []
+    if items:
+        sections = _finalize_sections(units, _split_by_markers(units, _choose_level(items, units)), unit_label)
+    # Không có cấu trúc, hoặc cấu trúc chỉ cho 1 phần dài: chia theo dung lượng
+    if len(sections) <= 1 and sum(len(u) for u in units) > FALLBACK_SECTION_CHARS:
+        structure = "size"
+        sections = _finalize_sections(units, _split_by_markers(units, _fallback_markers(units, unit_label)), unit_label)
+    elif not items:
+        structure = "size"
+        sections = _finalize_sections(units, _split_by_markers(units, _fallback_markers(units, unit_label)), unit_label)
+
+    if not sections:
         raise ValueError(
             "Không trích xuất được chữ từ tài liệu này (có thể là file scan dạng ảnh, file bị mã hóa hoặc file rỗng)."
         )
-
-    chunks = create_chunks_from_text(normalized_text, min_chars=min_chars, max_chars=max_chars)
-
     return {
-        "total_characters": len(normalized_text),
-        "total_words": len(normalized_text.split()),
+        "total_pages": len(units) if unit_label == "trang" else None,
+        "total_characters": sum(s["char_count"] for s in sections),
+        "structure": structure,
+        "sections": sections,
+    }
+
+
+def chunks_for_text(text: str) -> Dict[str, Any]:
+    chunks = create_chunks_from_text(text)
+    return {
+        "total_characters": len(text),
+        "total_words": len(text.split()),
         "total_chunks": len(chunks),
         "chunks": chunks
     }
+
+
+def extract_and_chunk_document(doc_path: Path) -> Dict[str, Any]:
+    """Toàn bộ tài liệu (mọi phần) thành chunks; dùng khi không chọn phần."""
+    doc = extract_document_sections(doc_path)
+    return chunks_for_text("\n\n".join(s["text"] for s in doc["sections"]))

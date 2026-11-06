@@ -1,7 +1,9 @@
 // Text to Speech: chuyển tab và gọi backend tts-service (Azure Speech) trên Render.
+// Luồng: chọn file/link -> Xem mục lục (chia theo chương) -> chọn phần -> Nghe ngay hoặc Tải MP3.
 const TTS_API = ["localhost", "127.0.0.1"].includes(location.hostname)
   ? "http://127.0.0.1:8000"
   : "https://transcript-tts.onrender.com";
+const MONTHLY_FREE_CHARS = 500000; // Azure Speech Free F0
 
 const $ = (id) => document.getElementById(id);
 
@@ -22,6 +24,7 @@ showView();
 // ---------- Trạng thái ----------
 let sourceMode = "file";
 let job = null; // AbortController của lần chạy hiện tại
+let doc = null; // kết quả /api/document của nguồn đang chọn
 const player = { sessionId: null, chunks: [], index: 0, token: 0, title: "" };
 const audio = new Audio();
 audio.preload = "auto";
@@ -36,6 +39,43 @@ function setBadge(text, state = "") {
   $("tts-badge").dataset.state = state;
 }
 
+const formatTime = (s) => (!isFinite(s) || s < 0 ? "00:00"
+  : `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
+const formatMinutes = (sec) => (sec < 3600 ? `${Math.max(1, Math.round(sec / 60))} phút`
+  : `${Math.floor(sec / 3600)} giờ ${Math.round((sec % 3600) / 60)} phút`);
+const formatChars = (n) => n.toLocaleString("vi-VN");
+
+function outputMode() {
+  return document.querySelector('input[name="tts-mode"]:checked').value;
+}
+
+function selectedIds() {
+  return [...document.querySelectorAll("#tts-section-list input:checked")].map((c) => Number(c.value));
+}
+
+function updateRunLabel() {
+  const mp3 = outputMode() === "mp3";
+  $("tts-merge-field").classList.toggle("hidden", !mp3);
+  $("tts-run").firstChild.textContent = !doc ? "Xem mục lục" : mp3 ? "Tạo file MP3" : "Bắt đầu đọc";
+  $("tts-run-selected").firstChild.textContent = mp3 ? "Tạo file MP3" : "Bắt đầu đọc";
+}
+
+function showPanel(which) {
+  for (const [id, name] of [["tts-empty", "empty"], ["tts-sections", "sections"], ["tts-player", "player"], ["tts-files", "files"]]) {
+    $(id).classList.toggle("hidden", which !== name);
+  }
+}
+
+// Đổi file/link thì phải xem lại mục lục
+function resetDocument() {
+  doc = null;
+  audio.pause();
+  player.token++;
+  showPanel("empty");
+  setBadge("Chưa có tài liệu");
+  updateRunLabel();
+}
+
 function selectSource(mode) {
   if (job) return;
   sourceMode = mode;
@@ -43,20 +83,8 @@ function selectSource(mode) {
     $(`tts-source-${s}`).setAttribute("aria-pressed", String(s === mode));
     $(`tts-${s}-fields`).classList.toggle("hidden", s !== mode);
   }
+  resetDocument();
 }
-
-function outputMode() {
-  return document.querySelector('input[name="tts-mode"]:checked').value;
-}
-
-function syncModeFields() {
-  const mp3 = outputMode() === "mp3";
-  $("tts-merge-field").classList.toggle("hidden", !mp3);
-  $("tts-run").firstChild.textContent = mp3 ? "Tạo file MP3" : "Bắt đầu đọc";
-}
-
-const formatTime = (s) => (!isFinite(s) || s < 0 ? "00:00"
-  : `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
 
 async function api(path, options = {}, timeout = 120000) {
   const signal = AbortSignal.any([job?.signal ?? new AbortController().signal, AbortSignal.timeout(timeout)]);
@@ -97,15 +125,87 @@ function sourceForm() {
     }
     form.append("url", url);
   }
-  form.append("voice", $("tts-voice").value);
-  form.append("rate", $("tts-rate").value);
   return form;
 }
 
-function showPanel(which) {
-  $("tts-empty").classList.toggle("hidden", which !== "empty");
-  $("tts-player").classList.toggle("hidden", which !== "player");
-  $("tts-files").classList.toggle("hidden", which !== "files");
+// ---------- Mục lục: chọn phần muốn nghe ----------
+function renderSections() {
+  $("tts-doc-title").textContent = doc.title;
+  const how = { bookmark: "theo mục lục của file", heading: "theo các tiêu đề trong file", size: "theo độ dài (file không có mục lục)" }[doc.structure];
+  const pages = doc.total_pages ? `${doc.total_pages} trang · ` : "";
+  $("tts-doc-note").textContent = `${pages}${doc.sections.length} phần, chia ${how}. Chọn phần muốn nghe; chỉ phần được chọn mới tốn hạn mức đọc.`;
+  const list = $("tts-section-list");
+  list.replaceChildren();
+  doc.sections.forEach((s) => {
+    const li = document.createElement("li");
+    const label = document.createElement("label");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = String(s.id);
+    box.checked = false; // người dùng tự chọn phần muốn nghe
+    box.addEventListener("change", updateSelection);
+    const text = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = s.title; // văn bản từ tài liệu: textContent, không innerHTML
+    const meta = document.createElement("span");
+    meta.className = "hint";
+    meta.textContent = `${s.pages ? `Trang ${s.pages} · ` : ""}~${formatMinutes(s.estimated_seconds)} · ${formatChars(s.char_count)} ký tự`;
+    text.append(title, meta);
+    label.append(box, text);
+    li.append(label);
+    list.append(li);
+  });
+  showPanel("sections");
+  updateSelection();
+}
+
+function updateSelection() {
+  const ids = new Set(selectedIds());
+  const chosen = doc.sections.filter((s) => ids.has(s.id));
+  const chars = chosen.reduce((n, s) => n + s.char_count, 0);
+  const secs = chosen.reduce((n, s) => n + s.estimated_seconds, 0);
+  const share = Math.round((chars / MONTHLY_FREE_CHARS) * 100);
+  $("tts-selection").textContent = chosen.length
+    ? `Đã chọn ${chosen.length} phần · ~${formatMinutes(secs)} · ${formatChars(chars)} ký tự (khoảng ${share}% hạn mức miễn phí mỗi tháng)`
+    : "Chưa chọn phần nào.";
+  $("tts-selection").dataset.state = share > 100 ? "warn" : "";
+  setBadge(`${chosen.length}/${doc.sections.length} phần`, chosen.length ? "complete" : "");
+}
+
+$("tts-select-all").addEventListener("click", () => {
+  document.querySelectorAll("#tts-section-list input").forEach((c) => { c.checked = true; });
+  updateSelection();
+});
+$("tts-select-none").addEventListener("click", () => {
+  document.querySelectorAll("#tts-section-list input").forEach((c) => { c.checked = false; });
+  updateSelection();
+});
+document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => {
+  if (!doc || job) return;
+  audio.pause();
+  player.token++;
+  showPanel("sections"); // giữ nguyên các phần đã chọn
+  updateSelection();
+  setStatus("Chọn phần muốn nghe tiếp.", "idle");
+}));
+
+async function analyze() {
+  setStatus("Đang đọc tài liệu và chia theo chương...");
+  doc = await api("/api/document", { method: "POST", body: sourceForm() }, 300000);
+  renderSections();
+  updateRunLabel();
+  setStatus(`Đã chia thành ${doc.sections.length} phần. Chọn phần muốn nghe rồi bấm ${outputMode() === "mp3" ? "Tạo file MP3" : "Bắt đầu đọc"}.`, "idle");
+}
+
+function selectionForm() {
+  const ids = selectedIds();
+  if (!ids.length) throw new Error("Hãy chọn ít nhất một phần để nghe.");
+  const form = new FormData();
+  form.append("doc_id", doc.doc_id);
+  form.append("section_ids", ids.join(","));
+  form.append("voice", $("tts-voice").value);
+  form.append("rate", $("tts-rate").value);
+  return form;
 }
 
 // ---------- Nghe ngay ----------
@@ -116,7 +216,7 @@ function renderChunkList() {
     const li = document.createElement("li");
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.textContent = c.preview; // văn bản từ tài liệu: textContent, không innerHTML
+    btn.textContent = c.preview;
     btn.addEventListener("click", () => loadChunk(i, true));
     li.append(btn);
     list.append(li);
@@ -182,10 +282,14 @@ if ("mediaSession" in navigator) {
   navigator.mediaSession.setActionHandler("nexttrack", () => loadChunk(player.index + 1, true));
 }
 
-audio.addEventListener("play", () => $("tts-play-icon").setAttribute("href", "#i-pause"));
-audio.addEventListener("pause", () => $("tts-play-icon").setAttribute("href", "#i-play"));
-audio.addEventListener("play", () => $("tts-play").setAttribute("aria-label", "Tạm dừng"));
-audio.addEventListener("pause", () => $("tts-play").setAttribute("aria-label", "Phát"));
+audio.addEventListener("play", () => {
+  $("tts-play-icon").setAttribute("href", "#i-pause");
+  $("tts-play").setAttribute("aria-label", "Tạm dừng");
+});
+audio.addEventListener("pause", () => {
+  $("tts-play-icon").setAttribute("href", "#i-play");
+  $("tts-play").setAttribute("aria-label", "Phát");
+});
 audio.addEventListener("loadedmetadata", () => { $("tts-duration").textContent = formatTime(audio.duration); });
 audio.addEventListener("timeupdate", () => {
   const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
@@ -195,7 +299,7 @@ audio.addEventListener("timeupdate", () => {
 });
 audio.addEventListener("ended", () => {
   if (player.index + 1 < player.chunks.length) loadChunk(player.index + 1, true);
-  else setStatus("Đã đọc hết tài liệu.", "idle");
+  else setStatus("Đã đọc hết phần đã chọn.", "idle");
 });
 
 $("tts-play").addEventListener("click", () => {
@@ -205,12 +309,9 @@ $("tts-play").addEventListener("click", () => {
 $("tts-prev").addEventListener("click", () => loadChunk(player.index - 1, true));
 $("tts-next").addEventListener("click", () => loadChunk(player.index + 1, true));
 $("tts-speed").addEventListener("change", () => { audio.playbackRate = Number($("tts-speed").value); });
-function seekTo(fraction) {
-  if (audio.duration) audio.currentTime = Math.min(Math.max(fraction, 0), 1) * audio.duration;
-}
 $("tts-progress").addEventListener("click", (e) => {
   const r = $("tts-progress").getBoundingClientRect();
-  seekTo((e.clientX - r.left) / r.width);
+  if (audio.duration) audio.currentTime = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1) * audio.duration;
 });
 $("tts-progress").addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") audio.currentTime += 10;
@@ -218,9 +319,9 @@ $("tts-progress").addEventListener("keydown", (e) => {
 });
 
 async function startStream(form) {
-  setStatus("Đang đọc tài liệu và chia đoạn...");
+  setStatus("Đang chuẩn bị phần đã chọn...");
   const data = await api("/api/player/init", { method: "POST", body: form }, 300000);
-  Object.assign(player, { sessionId: data.session_id, chunks: data.chunks, index: 0, title: data.title.replace(/^[0-9a-f]{8}_/, "") });
+  Object.assign(player, { sessionId: data.session_id, chunks: data.chunks, index: 0, title: data.title });
   $("tts-book").textContent = player.title;
   renderChunkList();
   showPanel("player");
@@ -233,7 +334,7 @@ async function startStream(form) {
 // ---------- Tải MP3 ----------
 async function startMp3(form) {
   form.append("merge_option", $("tts-merge").value);
-  setStatus("Đang gửi tài liệu...");
+  setStatus("Đang gửi yêu cầu tạo MP3...");
   const { task_id } = await api("/api/process/offline", { method: "POST", body: form }, 300000);
   setBadge("Đang tạo MP3");
   for (;;) {
@@ -271,13 +372,19 @@ function showFiles(task) {
 }
 
 // ---------- Chạy ----------
-const controls = ["tts-run", "tts-file", "tts-url", "tts-voice", "tts-rate", "tts-merge", "tts-source-file", "tts-source-link"];
+const controls = ["tts-run", "tts-run-selected", "tts-file", "tts-url", "tts-voice", "tts-rate", "tts-merge", "tts-source-file", "tts-source-link", "tts-select-all", "tts-select-none"];
+
+function setBusy(busy) {
+  controls.forEach((id) => { $(id).disabled = busy; });
+  document.querySelectorAll('input[name="tts-mode"], #tts-section-list input').forEach((r) => { r.disabled = busy; });
+  $("tts-cancel").classList.toggle("hidden", !busy);
+}
 
 async function run() {
   if (job) return;
-  let form;
+  let form = null;
   try {
-    form = sourceForm();
+    form = doc ? selectionForm() : sourceForm();
   } catch (e) {
     return setStatus(`Lỗi: ${e.message}`);
   }
@@ -285,29 +392,29 @@ async function run() {
   const current = job;
   audio.pause();
   player.token++;
-  controls.forEach((id) => { $(id).disabled = true; });
-  document.querySelectorAll('input[name="tts-mode"]').forEach((r) => { r.disabled = true; });
-  $("tts-cancel").classList.remove("hidden");
+  setBusy(true);
   try {
     await wakeServer();
-    if (outputMode() === "mp3") await startMp3(form);
+    if (!doc) await analyze();
+    else if (outputMode() === "mp3") await startMp3(form);
     else await startStream(form);
   } catch (e) {
     setStatus(current.signal.aborted ? "Đã dừng." : `Lỗi: ${e.message}`, "idle");
   } finally {
     job = null;
-    controls.forEach((id) => { $(id).disabled = false; });
-    document.querySelectorAll('input[name="tts-mode"]').forEach((r) => { r.disabled = false; });
-    $("tts-cancel").classList.add("hidden");
+    setBusy(false);
   }
 }
 
 $("tts-run").addEventListener("click", run);
+$("tts-run-selected").addEventListener("click", run); // nút ngay dưới danh sách phần, đỡ phải cuộn lên trên điện thoại
 $("tts-cancel").addEventListener("click", () => job?.abort());
 $("tts-source-file").addEventListener("click", () => selectSource("file"));
 $("tts-source-link").addEventListener("click", () => selectSource("link"));
-document.querySelectorAll('input[name="tts-mode"]').forEach((r) => r.addEventListener("change", syncModeFields));
+document.querySelectorAll('input[name="tts-mode"]').forEach((r) => r.addEventListener("change", updateRunLabel));
 $("tts-file").addEventListener("change", () => {
   $("tts-file-name").textContent = $("tts-file").files[0]?.name || "PDF hoặc .docx, tối đa 50 MB";
+  resetDocument();
 });
-syncModeFields();
+$("tts-url").addEventListener("input", () => { if (doc) resetDocument(); });
+updateRunLabel();
