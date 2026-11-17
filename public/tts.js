@@ -2,7 +2,7 @@
 // Luồng: chọn file/link -> Xem mục lục (chia theo chương) -> chọn phần -> Nghe ngay hoặc Tải MP3.
 const TTS_API = ["localhost", "127.0.0.1"].includes(location.hostname)
   ? "http://127.0.0.1:8000"
-  : "https://transcript-tts.onrender.com";
+  : "https://transcript-tts-6rig.onrender.com";
 const MONTHLY_FREE_CHARS = 500000; // Azure Speech Free F0
 const MONTHLY_FREE_OCR_PAGES = 500; // Azure Document Intelligence Free F0
 

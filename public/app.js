@@ -2,7 +2,7 @@ const SAMPLE_RATE = 16000;
 const CHUNK_SECONDS = 30;
 const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"];
 const KEY_STORAGE = "gemini-api-key";
-const DOWNLOADER_URL = "https://transcript-downloader-trial.onrender.com";
+const DOWNLOADER_URL = "https://transcript-downloader-trial-2vfl.onrender.com";
 
 const $ = (id) => document.getElementById(id);
 let last = null; // { text, source, method }
