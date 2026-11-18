@@ -89,7 +89,8 @@ async def _request(method: str, url: str, **kwargs) -> requests.Response:
         try:
             resp = await asyncio.to_thread(requests.request, method, url, timeout=60, **kwargs)
         except requests.RequestException as e:
-            last = f"lỗi mạng: {e}"
+            # Không đưa str(e) vào thông báo: nó chứa URL ghép từ AZURE_DOCINTEL_ENDPOINT (trang status là công khai)
+            last = f"lỗi mạng ({type(e).__name__})"
         else:
             if resp.status_code < 400:
                 return resp
@@ -109,6 +110,8 @@ async def _request(method: str, url: str, **kwargs) -> requests.Response:
 async def ocr_image(jpeg: bytes) -> str:
     """Gửi một ảnh tới prebuilt-read và trả về toàn bộ chữ nhận dạng được."""
     endpoint = os.environ["AZURE_DOCINTEL_ENDPOINT"].strip().rstrip("/")
+    if not endpoint.startswith("https://"):
+        raise RuntimeError("AZURE_DOCINTEL_ENDPOINT không hợp lệ: phải là URL dạng https://<tên-resource>.cognitiveservices.azure.com/")
     url = f"{endpoint}/documentintelligence/documentModels/prebuilt-read:analyze?api-version={API_VERSION}"
     resp = await _request("POST", url, headers=_headers("image/jpeg"), data=jpeg)
     op_url = resp.headers.get("Operation-Location")
